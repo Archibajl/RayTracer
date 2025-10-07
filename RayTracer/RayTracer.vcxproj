@@ -128,13 +128,16 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="RayTracer.cpp" />
-    <ClCompile Include="RayTracer2.cpp" />
+    <ClCompile Include="SceneCreator.cpp" />
     <ClCompile Include="STLReader.cpp" />
+    <ClCompile Include="Voxels.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="RayTracer2.h" />
     <ClInclude Include="resource.h" />
+    <ClInclude Include="SceneCreator.h" />
     <ClInclude Include="STLReader.h" />
+    <ClInclude Include="Voxels.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="RayTracer.rc" />

@@ -27,6 +27,12 @@
     <ClCompile Include="Voxels.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="StlMesh.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="MeshGenerator.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="RayTracer2.h">
@@ -42,6 +48,12 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Voxels.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="MeshGenerator.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="StlMesh.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

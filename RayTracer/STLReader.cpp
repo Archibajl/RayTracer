@@ -17,14 +17,14 @@ public:
 
             // Iterate through all triangles
             for (size_t i = 0; i < mesh.num_tris(); ++i) {
-                //std::cout << "Triangle " << i << ": ";
+                std::cout << "Triangle " << i << ": ";
                 for (size_t j = 0; j < 3; ++j) {
                     const float* c = mesh.tri_corner_coords(i, j);
-                    //std::cout << "(" << c[0] << ", " << c[1] << ", " << c[2] << ") ";
+                    std::cout << "(" << c[0] << ", " << c[1] << ", " << c[2] << ") ";
 
                 }
                 const float* n = mesh.tri_normal(i);
-                //std::cout << "Normal: (" << n[0] << ", " << n[1] << ", " << n[2] << ")\n";
+                std::cout << "Normal: (" << n[0] << ", " << n[1] << ", " << n[2] << ")\n";
             }
             return mesh;
         }

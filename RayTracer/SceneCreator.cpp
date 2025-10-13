@@ -44,8 +44,9 @@ inline VoxelGrid BuildVoxelGridFromStlMesh(const StlMesh& mesh, size_t nx, size_
         cg_datastructures::Vec3 v0 = { mesh.coords[i0 * 3 + 0], mesh.coords[i0 * 3 + 1], mesh.coords[i0 * 3 + 2] };
         cg_datastructures::Vec3 v1 = { mesh.coords[i1 * 3 + 0], mesh.coords[i1 * 3 + 1], mesh.coords[i1 * 3 + 2] };
         cg_datastructures::Vec3 v2 = { mesh.coords[i2 * 3 + 0], mesh.coords[i2 * 3 + 1], mesh.coords[i2 * 3 + 2] };
-        cg_datastructures::Vec3 normal = { 0, 0, 0 }; // Optionally compute normal here
-        triangles.push_back({ normal, v0, v1, v2 });
+        const float* nrm = mesh.tri_normal(t);
+        cg_datastructures::Vec3 normal = { nrm[0], nrm[1], nrm[2] };
+        triangles.emplace_back(cg_datastructures::Triangle{ v0, v1, v2, normal });
     }
 
     // Helper lambda to get voxel index

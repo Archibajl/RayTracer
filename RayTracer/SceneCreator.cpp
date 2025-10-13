@@ -9,9 +9,21 @@ struct VoxelGrid {
     cg_datastructures::Vec3 minBound, maxBound;
     cg_datastructures::Vec3 voxelSize;
     std::vector<cg_datastructures::Triangle> triangles; // Store actual triangles here
+
+    VoxelGrid(
+        std::vector<cg_datastructures::Voxel>&& voxels_,
+        size_t nx_, size_t ny_, size_t nz_,
+        const cg_datastructures::Vec3& minBound_,
+        const cg_datastructures::Vec3& maxBound_,
+        const cg_datastructures::Vec3& voxelSize_,
+        std::vector<cg_datastructures::Triangle>&& triangles_)
+        : voxels(std::move(voxels_)), nx(nx_), ny(ny_), nz(nz_),
+          minBound(minBound_), maxBound(maxBound_), voxelSize(voxelSize_),
+          triangles(std::move(triangles_))
+    {}
 };
 
-inline VoxelGrid BuildVoxelGridFromStlMesh(const StlMesh& mesh, size_t nx, size_t ny, size_t nz) {
+inline VoxelGrid BuildVoxelGridFromStlMesh(StlMesh& mesh, size_t nx, size_t ny, size_t nz) {
     // Compute mesh AABB
     cg_datastructures::Vec3 minBound = { std::numeric_limits<float>::max(), std::numeric_limits<float>::max(), std::numeric_limits<float>::max() };
     cg_datastructures::Vec3 maxBound = { std::numeric_limits<float>::lowest(), std::numeric_limits<float>::lowest(), std::numeric_limits<float>::lowest() };

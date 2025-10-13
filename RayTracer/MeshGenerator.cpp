@@ -12,10 +12,10 @@ class MeshGenerator
 
         StlMesh mesh = convertMesh(stlObject);
 
-		std::cout << "Triangles : " + mesh.num_tris;
-		std::cout << "Number of vertecees: " + mesh.num_vrts;
+		//std::cout << "Triangles : " + mesh.num_tris;
+		//std::cout << "Number of vertecees: " + mesh.num_vrts;
 
-		printMeshInfoStlMesh(mesh);
+		//printMeshInfoStlMesh(mesh);
 
 		return mesh;
     }
@@ -74,12 +74,12 @@ class MeshGenerator
         return h_mesh_dev;
     }
 
-    private : void cleanup(float* d_coords, float* d_normals, unsigned int* d_tris) {
-        // Free device memory
-        cudaFree(d_coords);
-        cudaFree(d_normals);
-        cudaFree(d_tris);
-	}
+ //   private : void cleanup(float* d_coords, float* d_normals, unsigned int* d_tris) {
+ //       // Free device memory
+ //       cudaFree(d_coords);
+ //       cudaFree(d_normals);
+ //       cudaFree(d_tris);
+	//}
 
     private: void printMeshInfoStlMesh(const stl_reader::StlMesh<float, unsigned int>& mesh) {
     std::cout << "Number of vertices: " << mesh.num_vrts() << std::endl;
@@ -99,18 +99,18 @@ class MeshGenerator
 
 
     private: void printMeshInfoStlMesh(const StlMesh& mesh) {
-        std::cout << "Number of vertices: " << mesh.num_vrts << std::endl;
-        std::cout << "Number of triangles: " << mesh.num_tris << std::endl;
+        printf( "Number of vertices: " + mesh.num_vrts );
+        printf( "Number of triangles: " + mesh.num_tris );
     
         // Iterate through all triangles
         for (size_t i = 0; i < mesh.num_tris; ++i) {
-            std::cout << "Triangle " << i << ": ";
+            printf( "Triangle %zu: ", i);
             for (size_t j = 0; j < 3; ++j) {
                 const float* c = mesh.tri_corner_coords(i, j);
-                std::cout << "(" << c[0] << ", " << c[1] << ", " << c[2] << ") ";
+                printf("(%f, %f, %f) ", c[0], c[1], c[2]);
             }
             const float* n = mesh.tri_normal(i);
-            std::cout << "Normal: (" << n[0] << ", " << n[1] << ", " << n[2] << ")\n";
+            printf( "Normal: (%f, %f, %f)\n", n[0], n[1], n[2]);
         }
     }
 

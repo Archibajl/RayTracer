@@ -129,7 +129,6 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="HostStlMesh.cpp" />
     <ClCompile Include="MeshGenerator.cpp" />
     <ClCompile Include="RayTracer.cpp" />
     <ClCompile Include="SceneCreator.cpp" />
@@ -138,9 +137,7 @@
     <ClCompile Include="Voxels.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="HostStlMesh.h" />
     <ClInclude Include="MeshGenerator.h" />
-    <ClInclude Include="RayTracer2.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="SceneCreator.h" />
     <ClInclude Include="StlMesh.h" />

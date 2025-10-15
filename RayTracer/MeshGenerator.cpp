@@ -1,33 +1,25 @@
 #include "MeshGenerator.h"
+#include "Logger.h"
 
 class MeshGenerator
 {
 
-    public: StlMesh generateMeshes(const std::string filePath) {
+    public: StlMeshCuda generateMeshes(const std::string filePath) {
         stl_reader::StlMesh<float, unsigned int> stlObject = readStl(filePath);
 
-        std::cout << stlObject.num_tris();
+        LOG_INFO("Read STL file with {} triangles", stlObject.num_tris());
 
-		//printMeshInfoStlMesh(stlObject);
-
-        StlMesh mesh = convertMesh(stlObject);
-
-		//std::cout << "Triangles : " + mesh.num_tris;
-		//std::cout << "Number of vertecees: " + mesh.num_vrts;
-
-		//printMeshInfoStlMesh(mesh);
+        StlMeshCuda mesh = convertMesh(stlObject);
 
 		return mesh;
     }
 
 
     private : stl_reader::StlMesh<float, unsigned int> readStl(std::string filename) {
-        //std::cout << std::filesystem::current_path() << std::endl;
-
         try {
             stl_reader::StlMesh<float, unsigned int> mesh(filename);
 
-            std::cout << mesh.num_tris();
+            LOG_DEBUG("Loaded {} triangles from STL file", mesh.num_tris());
 
             return mesh;
         }
@@ -37,7 +29,7 @@ class MeshGenerator
         }
     }
 
-    private : StlMesh convertMesh(stl_reader::StlMesh<float, unsigned int> mesh) {
+    private : StlMeshCuda convertMesh(stl_reader::StlMesh<float, unsigned int> mesh) {
 
         // Allocate device memory
         float* d_coords;
@@ -57,29 +49,20 @@ class MeshGenerator
         cudaMemcpy(d_normals, mesh.raw_normals(), num_normals * sizeof(float), cudaMemcpyHostToDevice);
         cudaMemcpy(d_tris, mesh.raw_tris(), num_tris * sizeof(unsigned int), cudaMemcpyHostToDevice);
 
-        StlMesh h_mesh_dev;
+        StlMeshCuda h_mesh_dev;
         h_mesh_dev.coords = d_coords;
         h_mesh_dev.normals = d_normals;
         h_mesh_dev.tris = d_tris;
         h_mesh_dev.num_vrts = mesh.num_vrts();
         h_mesh_dev.num_tris = mesh.num_tris();
 
-        StlMesh* d_mesh_dev;
+        StlMeshCuda* d_mesh_dev;
         // Fix the cudaMalloc call by casting the address to (void**)
-        cudaMalloc((void**)&d_mesh_dev, sizeof(StlMesh));
-        cudaMemcpy(d_mesh_dev, &h_mesh_dev, sizeof(StlMesh), cudaMemcpyHostToDevice);
-
-		//cleanup(d_coords, d_normals, d_tris);
+        cudaMalloc((void**)&d_mesh_dev, sizeof(StlMeshCuda));
+        cudaMemcpy(d_mesh_dev, &h_mesh_dev, sizeof(StlMeshCuda), cudaMemcpyHostToDevice);
 
         return h_mesh_dev;
     }
-
- //   private : void cleanup(float* d_coords, float* d_normals, unsigned int* d_tris) {
- //       // Free device memory
- //       cudaFree(d_coords);
- //       cudaFree(d_normals);
- //       cudaFree(d_tris);
-	//}
 
     private: void printMeshInfoStlMesh(const stl_reader::StlMesh<float, unsigned int>& mesh) {
     std::cout << "Number of vertices: " << mesh.num_vrts() << std::endl;
@@ -98,7 +81,7 @@ class MeshGenerator
     }
 
 
-    private: void printMeshInfoStlMesh(const StlMesh& mesh) {
+    private: void printMeshInfoStlMesh(const StlMeshCuda& mesh) {
         printf( "Number of vertices: " + mesh.num_vrts );
         printf( "Number of triangles: " + mesh.num_tris );
     

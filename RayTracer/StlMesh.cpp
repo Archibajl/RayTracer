@@ -1,6 +1,5 @@
 #include "StlMesh.h"
 #include "STLReader.h"
-//#include <cuda_device_runtime_api.h>
 #include <cuda_runtime_api.h>
 
 // Host-side mesh (for CPU code)

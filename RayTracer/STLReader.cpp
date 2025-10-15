@@ -21,7 +21,5 @@ public:
             std::cerr << e.what() << std::endl;
             return NULL;
         }
-
-        return 0;
     }
 };

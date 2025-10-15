@@ -1,6 +1,9 @@
+#ifndef STL_MESH_H
+#define STL_MESH_H
+
 // Struct for use on the device (CUDA)
 #include <builtin_types.h>
-struct StlMesh
+struct StlMeshCuda
 {
     const float* coords;    // [num_vrts * 3]
     const float* normals;   // [num_tris * 3]
@@ -21,3 +24,5 @@ struct StlMesh
         return &normals[tri_idx * 3];
     }
 };
+
+#endif // STL_MESH_H

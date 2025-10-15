@@ -15,31 +15,123 @@ struct Triangle {
     Vec3 normal;     // Optional: may be zeroed if not used
 };
 
-// CUDA-compatible vector: use raw pointer and size
+// CUDA-compatible Voxel structure
+// For CUDA compatibility, we use indices instead of pointers
 struct Voxel {
     bool occupied = false;
-    const Triangle** triangles = nullptr; // Array of pointers to Triangle
+    unsigned int triangle_start_idx = 0;  // Starting index in global triangle index array
+    unsigned int triangle_count = 0;      // Number of triangles in this voxel
+    float density = 0.0f;
+    Vec3 color = { 0.0f, 0.0f, 0.0f };
+};
+
+// Host-side Voxel for building the grid (with dynamic allocation)
+struct VoxelHost {
+    bool occupied = false;
+    unsigned int* triangle_indices = nullptr;  // Array of triangle indices
     size_t triangle_count = 0;
     size_t triangle_capacity = 0;
     float density = 0.0f;
     Vec3 color = { 0.0f, 0.0f, 0.0f };
 
-    // Add this method to allow adding triangle pointers
-    void addTriangle(const Triangle* tri) {
-        if (triangle_count == triangle_capacity) {
-            // Grow capacity (double or start at 4)
-            size_t new_capacity = triangle_capacity == 0 ? 4 : triangle_capacity * 2;
-            const Triangle** new_triangles = new const Triangle*[new_capacity];
-            for (size_t i = 0; i < triangle_count; ++i) {
-                new_triangles[i] = triangles ? triangles[i] : nullptr;
+    // Default constructor
+    VoxelHost() = default;
+
+    // Destructor
+    ~VoxelHost() {
+        if (triangle_indices != nullptr) {
+            delete[] triangle_indices;
+            triangle_indices = nullptr;
+        }
+    }
+
+    // Copy constructor
+    VoxelHost(const VoxelHost& other)
+        : occupied(other.occupied),
+          triangle_count(other.triangle_count),
+          triangle_capacity(other.triangle_capacity),
+          density(other.density),
+          color(other.color)
+    {
+        if (other.triangle_indices != nullptr && other.triangle_capacity > 0) {
+            triangle_indices = new unsigned int[other.triangle_capacity];
+            for (size_t i = 0; i < other.triangle_count; ++i) {
+                triangle_indices[i] = other.triangle_indices[i];
             }
-            delete[] triangles;
-            triangles = new_triangles;
+        } else {
+            triangle_indices = nullptr;
+        }
+    }
+
+    // Move constructor
+    VoxelHost(VoxelHost&& other) noexcept
+        : occupied(other.occupied),
+          triangle_indices(other.triangle_indices),
+          triangle_count(other.triangle_count),
+          triangle_capacity(other.triangle_capacity),
+          density(other.density),
+          color(other.color)
+    {
+        other.triangle_indices = nullptr;
+        other.triangle_count = 0;
+        other.triangle_capacity = 0;
+    }
+
+    // Copy assignment operator
+    VoxelHost& operator=(const VoxelHost& other) {
+        if (this != &other) {
+            delete[] triangle_indices;
+
+            occupied = other.occupied;
+            triangle_count = other.triangle_count;
+            triangle_capacity = other.triangle_capacity;
+            density = other.density;
+            color = other.color;
+
+            if (other.triangle_indices != nullptr && other.triangle_capacity > 0) {
+                triangle_indices = new unsigned int[other.triangle_capacity];
+                for (size_t i = 0; i < other.triangle_count; ++i) {
+                    triangle_indices[i] = other.triangle_indices[i];
+                }
+            } else {
+                triangle_indices = nullptr;
+            }
+        }
+        return *this;
+    }
+
+    // Move assignment operator
+    VoxelHost& operator=(VoxelHost&& other) noexcept {
+        if (this != &other) {
+            delete[] triangle_indices;
+
+            occupied = other.occupied;
+            triangle_indices = other.triangle_indices;
+            triangle_count = other.triangle_count;
+            triangle_capacity = other.triangle_capacity;
+            density = other.density;
+            color = other.color;
+
+            other.triangle_indices = nullptr;
+            other.triangle_count = 0;
+            other.triangle_capacity = 0;
+        }
+        return *this;
+    }
+
+    // Add triangle index to this voxel
+    void addTriangleIndex(unsigned int tri_idx) {
+        if (triangle_count == triangle_capacity) {
+            size_t new_capacity = triangle_capacity == 0 ? 4 : triangle_capacity * 2;
+            unsigned int* new_indices = new unsigned int[new_capacity];
+            for (size_t i = 0; i < triangle_count; ++i) {
+                new_indices[i] = triangle_indices[i];
+            }
+            delete[] triangle_indices;
+            triangle_indices = new_indices;
             triangle_capacity = new_capacity;
         }
-        if (triangle_count < triangle_capacity) { // Ensure no buffer overrun
-            triangles[triangle_count++] = tri;
-        }
+        triangle_indices[triangle_count++] = tri_idx;
     }
 };
 

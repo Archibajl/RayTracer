@@ -37,9 +37,11 @@ DeviceStlMesh toDeviceMesh(const HostStlMesh& hostMesh) {
     DeviceStlMesh deviceMesh;
     deviceMesh.num_vrts = hostMesh.num_vrts;
     deviceMesh.num_tris = hostMesh.num_tris;
+    //allocate space for values in cuda for gpu
     cudaMalloc((void**)&deviceMesh.coords, hostMesh.coords.size() * sizeof(float));
     cudaMalloc((void**)&deviceMesh.normals, hostMesh.normals.size() * sizeof(float));
     cudaMalloc((void**)&deviceMesh.tris, hostMesh.tris.size() * sizeof(unsigned int));
+    //write memory to allocated cuda memory
     cudaMemcpy((void*)deviceMesh.coords, hostMesh.coords.data(), hostMesh.coords.size() * sizeof(float), cudaMemcpyHostToDevice);
     cudaMemcpy((void*)deviceMesh.normals, hostMesh.normals.data(), hostMesh.normals.size() * sizeof(float), cudaMemcpyHostToDevice);
     cudaMemcpy((void*)deviceMesh.tris, hostMesh.tris.data(), hostMesh.tris.size() * sizeof(unsigned int), cudaMemcpyHostToDevice);

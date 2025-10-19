@@ -1,0 +1,108 @@
+#version 450
+
+// Compute shader for simple ray tracing
+// Compile with: glslangValidator -V raytracer.comp -o raytracer.spv
+// Or: glslc raytracer.comp -o raytracer.spv
+
+layout(local_size_x = 16, local_size_y = 16) in;
+
+// Bindings
+layout(binding = 0) buffer TriangleBuffer {
+    float triangles[]; // Format: v0.xyz, v1.xyz, v2.xyz (9 floats per triangle)
+};
+
+layout(binding = 1) buffer OutputBuffer {
+    vec4 pixels[]; // RGBA output
+};
+
+// Push constants
+layout(push_constant) uniform PushConstants {
+    uint width;
+    uint height;
+    uint triangleCount;
+};
+
+// Ray structure
+struct Ray {
+    vec3 origin;
+    vec3 direction;
+};
+
+// Ray-triangle intersection (Möller-Trumbore algorithm)
+bool intersectTriangle(Ray ray, vec3 v0, vec3 v1, vec3 v2, out float t) {
+    const float EPSILON = 0.0000001;
+
+    vec3 edge1 = v1 - v0;
+    vec3 edge2 = v2 - v0;
+    vec3 h = cross(ray.direction, edge2);
+    float a = dot(edge1, h);
+
+    if (abs(a) < EPSILON)
+        return false;
+
+    float f = 1.0 / a;
+    vec3 s = ray.origin - v0;
+    float u = f * dot(s, h);
+
+    if (u < 0.0 || u > 1.0)
+        return false;
+
+    vec3 q = cross(s, edge1);
+    float v = f * dot(ray.direction, q);
+
+    if (v < 0.0 || u + v > 1.0)
+        return false;
+
+    t = f * dot(edge2, q);
+    return t > EPSILON;
+}
+
+void main() {
+    uvec2 pixelCoord = gl_GlobalInvocationID.xy;
+
+    // Check bounds
+    if (pixelCoord.x >= width || pixelCoord.y >= height)
+        return;
+
+    // Setup camera
+    float aspectRatio = float(width) / float(height);
+    vec2 uv = (vec2(pixelCoord) + 0.5) / vec2(width, height);
+    uv = uv * 2.0 - 1.0; // Map to [-1, 1]
+    uv.x *= aspectRatio;
+
+    // Create ray
+    Ray ray;
+    ray.origin = vec3(0, 0, -5);
+    ray.direction = normalize(vec3(uv, 1.0));
+
+    // Trace ray through all triangles
+    float closestT = 1e10;
+    vec3 color = vec3(0.1, 0.1, 0.15); // Background color
+    bool hit = false;
+
+    for (uint i = 0; i < triangleCount; i++) {
+        uint baseIdx = i * 9;
+        vec3 v0 = vec3(triangles[baseIdx + 0], triangles[baseIdx + 1], triangles[baseIdx + 2]);
+        vec3 v1 = vec3(triangles[baseIdx + 3], triangles[baseIdx + 4], triangles[baseIdx + 5]);
+        vec3 v2 = vec3(triangles[baseIdx + 6], triangles[baseIdx + 7], triangles[baseIdx + 8]);
+
+        float t;
+        if (intersectTriangle(ray, v0, v1, v2, t)) {
+            if (t < closestT) {
+                closestT = t;
+                hit = true;
+
+                // Simple normal-based shading
+                vec3 normal = normalize(cross(v1 - v0, v2 - v0));
+                vec3 lightDir = normalize(vec3(1, 1, -1));
+                float diffuse = max(0.0, dot(normal, lightDir));
+
+                color = vec3(0.7, 0.7, 0.7) * (0.3 + 0.7 * diffuse);
+            }
+        }
+    }
+
+    // Write output
+    uint pixelIndex = pixelCoord.y * width + pixelCoord.x;
+    pixels[pixelIndex] = vec4(color, 1.0);
+}

@@ -14,7 +14,7 @@ public:
         console_sink->set_level(spdlog::level::trace);
 
         // Create file sink
-        auto file_sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>("raytracer.log", true);
+        auto file_sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>("Raytracer-Common.log", true);
         file_sink->set_level(spdlog::level::trace);
 
         // Combine sinks

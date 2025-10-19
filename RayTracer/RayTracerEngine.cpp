@@ -1,42 +1,11 @@
 #include "RayTracerEngine.h"
+#include "VectorMath.h"
 #include "Logger.h"
 #include <algorithm>
 #include <cmath>
 
 using namespace cg_datastructures;
-
-// Helper functions for vector math
-inline Vec3 normalize(const Vec3& v) {
-    float len = std::sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
-    if (len > 0.0f) {
-        return { v.x / len, v.y / len, v.z / len };
-    }
-    return v;
-}
-
-inline Vec3 cross(const Vec3& a, const Vec3& b) {
-    return {
-        a.y * b.z - a.z * b.y,
-        a.z * b.x - a.x * b.z,
-        a.x * b.y - a.y * b.x
-    };
-}
-
-inline float dot(const Vec3& a, const Vec3& b) {
-    return a.x * b.x + a.y * b.y + a.z * b.z;
-}
-
-inline Vec3 subtract(const Vec3& a, const Vec3& b) {
-    return { a.x - b.x, a.y - b.y, a.z - b.z };
-}
-
-inline Vec3 add(const Vec3& a, const Vec3& b) {
-    return { a.x + b.x, a.y + b.y, a.z + b.z };
-}
-
-inline Vec3 multiply(const Vec3& v, float s) {
-    return { v.x * s, v.y * s, v.z * s };
-}
+using namespace vector_math;
 
 // Constructor
 RayTracerEngine::RayTracerEngine(const VoxelGrid& grid)
@@ -63,7 +32,8 @@ Ray RayTracerEngine::generateRay(const Camera& camera, float u, float v) {
     Vec3 horizontal = multiply(right, 2.0f * halfWidth);
     Vec3 vertical = multiply(up, 2.0f * halfHeight);
 
-    Vec3 lowerLeft = subtract(subtract(subtract(camera.position, multiply(horizontal, 0.5f)),
+    // Image plane positioned 1 unit in front of camera
+    Vec3 lowerLeft = add(subtract(subtract(camera.position, multiply(horizontal, 0.5f)),
                               multiply(vertical, 0.5f)), forward);
 
     Vec3 direction = normalize(subtract(add(add(lowerLeft, multiply(horizontal, u)),
@@ -77,6 +47,9 @@ std::vector<Vec3> RayTracerEngine::render(const Camera& camera, int width, int h
     std::vector<Vec3> frameBuffer(width * height);
 
     LOG_INFO("Rendering {}x{} image...", width, height);
+
+    int hitCount = 0;
+    int totalRays = width * height;
 
     for (int y = 0; y < height; ++y) {
         if (y % (height / 10) == 0) {
@@ -95,11 +68,19 @@ std::vector<Vec3> RayTracerEngine::render(const Camera& camera, int width, int h
             RayHit hit = traceRay(ray);
 
             // Simple shading
-            Vec3 color = { 0.0f, 0.0f, 0.0f }; // Background color (black)
+            Vec3 color;
             if (hit.hit) {
-                // Simple normal-based shading
-                float intensity = std::max(0.0f, dot(hit.normal, normalize({ 1.0f, 1.0f, 1.0f })));
-                color = { intensity, intensity, intensity };
+                hitCount++;
+                // Normal-based shading with better contrast
+                Vec3 lightDir = normalize({ 1.0f, 1.0f, -1.0f });
+                float diffuse = std::max(0.0f, dot(hit.normal, lightDir));
+                float ambient = 0.3f;
+                float intensity = std::min(1.0f, ambient + diffuse * 0.7f);
+                color = { intensity * 0.8f, intensity * 0.6f, intensity * 0.4f }; // Warm color
+            } else {
+                // Sky gradient background
+                float t = v;
+                color = { 0.5f + 0.5f * t, 0.7f + 0.3f * t, 1.0f }; // Blue gradient
             }
 
             frameBuffer[y * width + x] = color;
@@ -107,10 +88,11 @@ std::vector<Vec3> RayTracerEngine::render(const Camera& camera, int width, int h
     }
 
     LOG_INFO("Rendering complete!");
+    LOG_INFO("Ray hits: {} / {} ({:.1f}%)", hitCount, totalRays, 100.0f * hitCount / totalRays);
     return frameBuffer;
 }
 
-// Main ray tracing function
+// Main ray tracing function - inline wrapper
 RayHit RayTracerEngine::traceRay(const Ray& ray) {
     return traverseVoxelGridDDA(ray);
 }
@@ -177,24 +159,6 @@ bool RayTracerEngine::rayBoxIntersection(
     tMax = std::min(std::min(std::max(tx1, tx2), std::max(ty1, ty2)), std::max(tz1, tz2));
 
     return tMax >= tMin && tMax >= 0.0f;
-}
-
-// Get voxel bounds
-void RayTracerEngine::getVoxelBounds(
-    size_t ix, size_t iy, size_t iz,
-    Vec3& voxelMin, Vec3& voxelMax) {
-
-    voxelMin = {
-        voxelGrid.minBound.x + ix * voxelGrid.voxelSize.x,
-        voxelGrid.minBound.y + iy * voxelGrid.voxelSize.y,
-        voxelGrid.minBound.z + iz * voxelGrid.voxelSize.z
-    };
-
-    voxelMax = {
-        voxelMin.x + voxelGrid.voxelSize.x,
-        voxelMin.y + voxelGrid.voxelSize.y,
-        voxelMin.z + voxelGrid.voxelSize.z
-    };
 }
 
 // Get voxel index

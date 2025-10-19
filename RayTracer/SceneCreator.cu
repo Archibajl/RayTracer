@@ -253,8 +253,14 @@ VoxelGrid BuildVoxelGridFromStlMeshCuda(const StlMeshCuda& mesh, size_t nx, size
         }
     }
 
-    std::cout << "[CUDA] Occupied voxels: " << occupied_count << " out of " << num_voxels << std::endl;
+    std::cout << "[CUDA] Occupied voxels with triangles: " << occupied_count << " / " << num_voxels << std::endl;
     std::cout << "[CUDA] Total triangle references: " << total_tri_refs << std::endl;
+
+    // Additional stats
+    if (occupied_count > 0) {
+        float avgTrianglesPerOccupiedVoxel = static_cast<float>(total_tri_refs) / occupied_count;
+        std::cout << "[CUDA] Average triangles per occupied voxel: " << avgTrianglesPerOccupiedVoxel << std::endl;
+    }
 
     // Step 5: Allocate device memory for triangle indices
     unsigned int* d_voxel_start_indices;

@@ -78,11 +78,6 @@ private:
         const cg_datastructures::Vec3& boxMax,
         float& tMin, float& tMax);
 
-    void getVoxelBounds(
-        size_t ix, size_t iy, size_t iz,
-        cg_datastructures::Vec3& voxelMin,
-        cg_datastructures::Vec3& voxelMax);
-
     size_t getVoxelIndex(size_t ix, size_t iy, size_t iz) const;
 
     // DDA-like voxel traversal

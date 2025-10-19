@@ -114,12 +114,13 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>cudart_static.lib; cuda.lib;cudart_static.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>cudart_static.lib;cuda.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <CudaCompile>
       <TargetMachinePlatform>64</TargetMachinePlatform>
       <GenerateRelocatableDeviceCode>true</GenerateRelocatableDeviceCode>
       <CudaRuntime>Static</CudaRuntime>
+      <AdditionalOptions>-Xcompiler "/utf-8" %(AdditionalOptions)</AdditionalOptions>
     </CudaCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -136,6 +137,9 @@
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
+    <CudaCompile>
+      <AdditionalOptions>-Xcompiler "/utf-8" %(AdditionalOptions)</AdditionalOptions>
+    </CudaCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="MeshGenerator.cpp" />
@@ -144,16 +148,24 @@
     <ClCompile Include="SceneCreator.cpp" />
     <ClCompile Include="StlMesh.cpp" />
     <ClCompile Include="STLReader.cpp" />
-    <ClCompile Include="Voxels.cpp" />
+    <ClCompile Include="TraceImages.cpp" />
+    <ClCompile Include="VectorMath.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="ImageSaver.h" />
+    <ClInclude Include="Logger.h" />
     <ClInclude Include="MeshGenerator.h" />
     <ClInclude Include="RayTracerEngine.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="SceneCreator.h" />
     <ClInclude Include="StlMesh.h" />
     <ClInclude Include="STLReader.h" />
+    <ClInclude Include="TraceImages.h" />
+    <ClInclude Include="VectorMath.h" />
     <ClInclude Include="Voxels.h" />
+    <ClInclude Include="vulkan\VulkanRayTracer.h">
+      <ExcludedFromBuild>true</ExcludedFromBuild>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="RayTracer.rc" />
@@ -161,6 +173,14 @@
   <ItemGroup>
     <None Include="..\..\..\..\OneDrive\Documents\MS-UCCS\CS5800\mesh models\Generic-scans\Airless_2.stl" />
     <None Include="stl2.bin" />
+    <None Include="vulkan\VulkanRayTracer.cpp">
+      <ExcludedFromBuild>true</ExcludedFromBuild>
+    </None>
+    <None Include="vulkan\VulkanExample.cpp">
+      <ExcludedFromBuild>true</ExcludedFromBuild>
+    </None>
+    <None Include="vulkan\README_VULKAN.md" />
+    <None Include="vulkan\shaders\raytracer.comp" />
   </ItemGroup>
   <ItemGroup>
     <CudaCompile Include="SceneCreator.cu" />

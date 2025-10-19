@@ -1,35 +1,76 @@
 #include "MeshGenerator.h"
-#include "Logger.h"
+#include <filesystem>
 
-class MeshGenerator
-{
-
-    public: StlMeshCuda generateMeshes(const std::string filePath) {
+//Cuda Compatible Mesh generator
+StlMeshCuda MeshGenerator::generateMeshes(const std::string filePath) {
         stl_reader::StlMesh<float, unsigned int> stlObject = readStl(filePath);
 
         LOG_INFO("Read STL file with {} triangles", stlObject.num_tris());
 
         StlMeshCuda mesh = convertMesh(stlObject);
 
-		return mesh;
-    }
+	return mesh;
+}
 
+stl_reader::StlMesh<float, unsigned int> MeshGenerator::readStl(std::string filename) {
+        // Convert to absolute path for better error messages
+        std::filesystem::path filePath(filename);
+        std::string absolutePath;
 
-    private : stl_reader::StlMesh<float, unsigned int> readStl(std::string filename) {
         try {
-            stl_reader::StlMesh<float, unsigned int> mesh(filename);
+            absolutePath = std::filesystem::absolute(filePath).string();
+        } catch (...) {
+            absolutePath = filename; // Fallback to original path
+        }
 
-            LOG_DEBUG("Loaded {} triangles from STL file", mesh.num_tris());
+        LOG_INFO("Attempting to load STL file: {}", absolutePath);
 
+        // Check if file exists
+        if (!std::filesystem::exists(filePath)) {
+            std::string error = "STL file not found: " + absolutePath;
+            LOG_ERROR(error);
+
+            // Try to provide helpful suggestions
+            if (std::filesystem::exists(filePath.parent_path())) {
+                LOG_INFO("Directory exists, but file '{}' not found in it", filePath.filename().string());
+                LOG_INFO("Checking directory contents...");
+
+                try {
+                    int fileCount = 0;
+                    for (const auto& entry : std::filesystem::directory_iterator(filePath.parent_path())) {
+                        if (entry.is_regular_file() && entry.path().extension() == ".stl") {
+                            LOG_INFO("  Found: {}", entry.path().filename().string());
+                            fileCount++;
+                        }
+                    }
+                    if (fileCount == 0) {
+                        LOG_INFO("  No .stl files found in directory");
+                    }
+                } catch (...) {
+                    // Ignore errors listing directory
+                }
+            } else {
+                LOG_ERROR("Directory does not exist: {}", filePath.parent_path().string());
+            }
+
+            throw std::runtime_error(error);
+        }
+
+        LOG_INFO("File exists, loading...");
+
+        try {
+            stl_reader::StlMesh<float, unsigned int> mesh(absolutePath);
+            LOG_INFO("Successfully loaded {} triangles from STL file", mesh.num_tris());
             return mesh;
         }
         catch (const std::exception& e) {
-            std::cerr << e.what() << std::endl;
-            return NULL;
+            LOG_ERROR("Failed to parse STL file: {}", e.what());
+            LOG_ERROR("File path: {}", absolutePath);
+            throw;
         }
     }
 
-    private : StlMeshCuda convertMesh(stl_reader::StlMesh<float, unsigned int> mesh) {
+StlMeshCuda MeshGenerator::convertMesh(stl_reader::StlMesh<float, unsigned int> mesh) {
 
         // Allocate device memory
         float* d_coords;
@@ -62,39 +103,36 @@ class MeshGenerator
         cudaMemcpy(d_mesh_dev, &h_mesh_dev, sizeof(StlMeshCuda), cudaMemcpyHostToDevice);
 
         return h_mesh_dev;
-    }
+}
 
-    private: void printMeshInfoStlMesh(const stl_reader::StlMesh<float, unsigned int>& mesh) {
-    std::cout << "Number of vertices: " << mesh.num_vrts() << std::endl;
-    std::cout << "Number of triangles: " << mesh.num_tris() << std::endl;
+void MeshGenerator::printMeshInfoStlMesh(const stl_reader::StlMesh<float, unsigned int>& mesh) {
+        LOG_DEBUG("Number of vertices: {}", mesh.num_vrts());
+        LOG_DEBUG("Number of triangles: {}", mesh.num_tris());
 
         // Iterate through all triangles
         for (size_t i = 0; i < mesh.num_tris(); ++i) {
-            std::cout << "Triangle " << i << ": ";
+            LOG_DEBUG("Triangle {}: ", i);
             for (size_t j = 0; j < 3; ++j) {
                 const float* c = mesh.tri_corner_coords(i, j);
-                std::cout << "(" << c[0] << ", " << c[1] << ", " << c[2] << ") ";
+                //LOG_DEBUG("({}, {}, {}) ", c[0], c[1], c[2]);
             }
             const float* n = mesh.tri_normal(i);
-            std::cout << "Normal: (" << n[0] << ", " << n[1] << ", " << n[2] << ")\n";
+            //LOG_DEBUG("Normal: ({}, {}, {})", n[0], n[1], n[2]);
         }
-    }
+}
 
+void MeshGenerator::printMeshInfoStlMesh(const StlMeshCuda& mesh) {
+        LOG_DEBUG("Number of vertices: %zu\n", mesh.num_vrts);
+        LOG_DEBUG("Number of triangles: %zu\n", mesh.num_tris);
 
-    private: void printMeshInfoStlMesh(const StlMeshCuda& mesh) {
-        printf( "Number of vertices: " + mesh.num_vrts );
-        printf( "Number of triangles: " + mesh.num_tris );
-    
         // Iterate through all triangles
         for (size_t i = 0; i < mesh.num_tris; ++i) {
-            printf( "Triangle %zu: ", i);
+            LOG_DEBUG("Triangle %zu: ", i);
             for (size_t j = 0; j < 3; ++j) {
                 const float* c = mesh.tri_corner_coords(i, j);
-                printf("(%f, %f, %f) ", c[0], c[1], c[2]);
+                LOG_DEBUG("(%f, %f, %f) ", c[0], c[1], c[2]);
             }
             const float* n = mesh.tri_normal(i);
-            printf( "Normal: (%f, %f, %f)\n", n[0], n[1], n[2]);
+            LOG_DEBUG("Normal: (%f, %f, %f)\n", n[0], n[1], n[2]);
         }
-    }
-
-};
+}

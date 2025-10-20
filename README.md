@@ -12,10 +12,13 @@ This project implements a modular ray tracer with a pluggable architecture that 
 - **STL Mesh Loading**: Read and process STL mesh files
 - **Multiple Acceleration Structures**:
   - Voxel Grid DDA (implemented)
-  - BVH, Octree, Brute Force (planned)
+  - ARTS - Fujimoto's 3DDDA Algorithm (implemented)
+  - Octree - Glassner's Adaptive Subdivision (implemented)
+  - BVH, Brute Force (planned)
 - **CUDA Support**: GPU-accelerated voxel grid generation
 - **Camera System**: Configurable camera with FOV and aspect ratio settings
 - **Image Output**: Render to PNG files
+- **Performance Statistics**: Detailed traversal and intersection statistics
 
 ## Project Structure
 
@@ -25,6 +28,8 @@ RayTracer/
 ├── TraceImages.h/.cpp         # Main API for rendering STL to images
 ├── IRayTracer.h               # Abstract ray tracer interface
 ├── VoxelDDARayTracer.h/.cpp   # Voxel grid DDA implementation
+├── ARTRayTracer.h/.cpp        # ARTS 3DDDA implementation
+├── OctreeRayTracer.h/.cpp     # Octree space subdivision implementation
 ├── RayTracerCommon.h          # Shared data structures (Ray, RayHit, Camera)
 ├── SceneCreator.h/.cpp/.cu    # Scene creation and voxel grid generation
 ├── StlMesh.h/.cpp             # STL mesh data structures
@@ -57,6 +62,24 @@ Current default ray tracing implementation:
 - DDA (Digital Differential Analyzer) traversal algorithm
 - Fast for dense scenes and solid objects
 - Memory intensive but predictable performance
+
+### ARTRayTracer
+Implementation of Fujimoto's classic ARTS algorithm:
+- Based on the 1986 paper "ARTS: Accelerated Ray-Tracing System"
+- 3DDDA (3D Digital Differential Analyzer) traversal
+- Performance independent of object count for large scenes
+- Excellent for scenes with many objects (1000+)
+- Includes detailed performance statistics logging
+
+### OctreeRayTracer
+Implementation of Glassner's adaptive octree subdivision:
+- Based on the 1984 paper "Space subdivision for fast ray tracing"
+- Non-uniform hierarchical spatial subdivision
+- Adaptive to scene complexity and object distribution
+- Lower memory usage for sparse scenes
+- Configurable max depth and triangles per node
+- Excellent for non-uniformly distributed geometry
+- Includes octree structure and traversal statistics
 
 ### VoxelGrid
 CUDA-accelerated acceleration structure:
@@ -128,6 +151,12 @@ int main() {
     // Explicitly specify Voxel Grid DDA method
     tracer.TraceImage("bunny.stl", "bunny_voxel.png", RayTracingMethod::VOXEL_DDA);
 
+    // Use ARTS method (Fujimoto's 3DDDA algorithm)
+    tracer.TraceImage("bunny.stl", "bunny_art.png", RayTracingMethod::ART);
+
+    // Use Octree method (Glassner's adaptive subdivision)
+    tracer.TraceImage("bunny.stl", "bunny_octree.png", RayTracingMethod::OCTREE);
+
     // Future: Use BVH method (when implemented)
     // tracer.TraceImage("bunny.stl", "bunny_bvh.png", RayTracingMethod::BVH);
 
@@ -149,8 +178,9 @@ The project uses an interface-based design that allows easy addition of new ray 
 IRayTracer (interface)
     ↑
     ├── VoxelDDARayTracer (implemented)
+    ├── ARTRayTracer (implemented)
+    ├── OctreeRayTracer (implemented)
     ├── BVHRayTracer (future)
-    ├── OctreeRayTracer (future)
     └── BruteForceRayTracer (future)
 ```
 
@@ -172,12 +202,13 @@ Implements the Möller–Trumbore intersection algorithm for efficient ray-trian
 ## Recent Development
 
 Recent updates include:
-- **Pluggable Architecture**: Refactored to use `IRayTracer` interface for multiple ray tracing methods
-- **Ray Tracer Implementation**: Traces rays and saves to image files
-- **Memory Management**: Refactored StlMesh class to use pointers for better memory management
+- **Three Ray Tracing Methods**: Voxel DDA, ARTS (Fujimoto), and Octree (Glassner) fully implemented
+- **Pluggable Architecture**: `IRayTracer` interface enables easy method comparison
+- **Historic Algorithms**: Implementations based on seminal 1984-1986 papers
+- **Adaptive Subdivision**: Octree method dynamically adapts to scene complexity
+- **Performance Statistics**: Detailed metrics for all ray tracing methods
 - **CUDA Voxelization**: GPU-accelerated voxel grid generation
-- **Logging System**: Added comprehensive logging throughout the pipeline
-- **Code Organization**: Cleaned up and reorganized project structure
+- **Comprehensive Documentation**: Detailed guides in RAYTRACING_METHODS.md
 
 ## Performance Considerations
 
@@ -190,9 +221,16 @@ Recent updates include:
 - **DDA Traversal**: Cache-friendly and predictable performance
 - **Best For**: Dense meshes, solid objects, scenes with high triangle density
 
+### Implemented Methods Comparison
+
+| Method | Best For | Pros | Cons |
+|--------|----------|------|------|
+| **Voxel DDA** | Dense, solid objects | Fast, predictable | Memory intensive |
+| **ARTS 3DDDA** | Many objects (1000+) | Performance independent of count | Uniform subdivision |
+| **Octree** | Non-uniform scenes | Adaptive, lower memory | Slower build time |
+
 ### Future Methods (Planned)
 - **BVH**: Better for complex scenes with varying triangle density
-- **Octree**: Good for sparse scenes with adaptive subdivision
 - **Brute Force**: Simple baseline for performance comparison
 
 See [RAYTRACING_METHODS.md](RayTracer/RAYTRACING_METHODS.md) for detailed comparison and implementation guide.

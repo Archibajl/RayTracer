@@ -15,9 +15,10 @@ namespace cg_datastructures {
  */
 enum class RayTracingMethod {
     VOXEL_DDA,      // Voxel grid with DDA traversal (current default)
+    ART,            // ARTS (Accelerated Ray-Tracing System) - Fujimoto's 3DDDA method
+    OCTREE,         // Octree space subdivision (Glassner 1984)
     // Future methods:
     // BVH,          // Bounding Volume Hierarchy
-    // OCTREE,       // Octree spatial subdivision
     // BRUTE_FORCE   // Direct triangle intersection (for testing)
 };
 

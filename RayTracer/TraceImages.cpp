@@ -3,9 +3,13 @@
 #include <filesystem>
 #include "SceneCreator.h"
 #include "VoxelDDARayTracer.h"
+#include "VoxelDDARayTracer.cpp"
+#include "ARTRayTracer.h"
+#include "ARTRayTracer.cpp"
+#include "OctreeRayTracer.h"
+#include "OctreeRayTracer.cpp"
 #include "ImageSaver.h"
 #include "MeshGenerator.h"
-#include "VoxelDDARayTracer.cpp"
 using namespace std;
 using namespace cg_datastructures;
 
@@ -19,6 +23,8 @@ void TraceImages::TraceImage(std::string gridFileLocation, std::string outputFil
 	std::string methodName;
 	switch (method) {
 		case RayTracingMethod::VOXEL_DDA: methodName = "Voxel Grid DDA"; break;
+		case RayTracingMethod::ART: methodName = "ARTS (3DDDA)"; break;
+		case RayTracingMethod::OCTREE: methodName = "Octree"; break;
 		default: methodName = "Unknown"; break;
 	}
 	LOG_INFO("Ray tracing method: {}", methodName);
@@ -178,6 +184,12 @@ std::unique_ptr<IRayTracer> TraceImages::createRayTracer(VoxelGrid& voxelGrid, R
 	switch (method) {
 		case RayTracingMethod::VOXEL_DDA:
 			return std::make_unique<VoxelDDARayTracer>(voxelGrid);
+
+		case RayTracingMethod::ART:
+			return std::make_unique<ARTRayTracer>(voxelGrid);
+
+		case RayTracingMethod::OCTREE:
+			return std::make_unique<OctreeRayTracer>(voxelGrid);
 
 		// Future methods can be added here:
 		// case RayTracingMethod::BVH:

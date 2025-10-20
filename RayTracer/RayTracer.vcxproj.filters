@@ -28,7 +28,7 @@
     <Filter Include="Source Files\Utils">
       <UniqueIdentifier>{02335eef-c98a-41e7-8fa6-929c860ad883}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Source Files\CPURayTracer">
+    <Filter Include="Source Files\CPURayTracers">
       <UniqueIdentifier>{be8ff96d-9915-4502-b91b-e17d79ea98f3}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
@@ -42,20 +42,20 @@
     <ClCompile Include="StlMesh.cpp">
       <Filter>Source Files\DataStructures</Filter>
     </ClCompile>
-    <ClCompile Include="Voxels.cpp">
-      <Filter>Source Files\DataStructures</Filter>
-    </ClCompile>
     <ClCompile Include="MeshGenerator.cpp">
       <Filter>Source Files\CUDA</Filter>
     </ClCompile>
     <ClCompile Include="STLReader.cpp">
       <Filter>Source Files\Reader</Filter>
     </ClCompile>
-    <ClCompile Include="utils\VectorMath.cpp">
+    <ClCompile Include="TraceImages.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="VectorMath.cpp">
       <Filter>Source Files\Utils</Filter>
     </ClCompile>
-    <ClCompile Include="cpu_raytracer\RayTracerEngine.cpp">
-      <Filter>Source Files\CPURayTracer</Filter>
+    <ClCompile Include="VoxelDDARayTracer.cpp">
+      <Filter>Source Files\CPURayTracers</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -65,14 +65,8 @@
     <ClInclude Include="MeshGenerator.h">
       <Filter>Source Files\CUDA</Filter>
     </ClInclude>
-    <ClInclude Include="utils\ImageSaver.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="vulkan\VulkanRayTracer.h">
       <Filter>Source Files\VulkanImplementation</Filter>
-    </ClInclude>
-    <ClInclude Include="utils\Logger.h">
-      <Filter>Source Files\Reader</Filter>
     </ClInclude>
     <ClInclude Include="STLReader.h">
       <Filter>Source Files\Reader</Filter>
@@ -80,17 +74,32 @@
     <ClInclude Include="StlMesh.h">
       <Filter>Source Files\DataStructures</Filter>
     </ClInclude>
-    <ClInclude Include="utils\VectorMath.h">
-      <Filter>Source Files\Utils</Filter>
-    </ClInclude>
-    <ClInclude Include="cpu_raytracer\RayTracerEngine.h">
-      <Filter>Source Files\CPURayTracer</Filter>
-    </ClInclude>
     <ClInclude Include="Voxels.h">
       <Filter>Source Files\DataStructures</Filter>
     </ClInclude>
     <ClInclude Include="SceneCreator.h">
       <Filter>Source Files\DataStructures</Filter>
+    </ClInclude>
+    <ClInclude Include="ImageSaver.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="IRayTracer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="RayTracerCommon.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="TraceImages.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="VectorMath.h">
+      <Filter>Source Files\Utils</Filter>
+    </ClInclude>
+    <ClInclude Include="Logger.h">
+      <Filter>Source Files\Reader</Filter>
+    </ClInclude>
+    <ClInclude Include="VoxelDDARayTracer.h">
+      <Filter>Source Files\CPURayTracers</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -99,16 +108,20 @@
     </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\..\..\..\OneDrive\Documents\MS-UCCS\CS5800\mesh models\Generic-scans\Airless_2.stl" />
     <None Include="stl2.bin">
       <Filter>Resource Files</Filter>
     </None>
-    <None Include="vulkan\README_VULKAN.md" />
-    <None Include="vulkan\shaders\raytracer.comp" />
+    <None Include="vulkan\README.md" />
     <None Include="vulkan\VulkanExample.cpp">
       <Filter>Source Files\VulkanImplementation</Filter>
     </None>
     <None Include="vulkan\VulkanRayTracer.cpp">
+      <Filter>Source Files\VulkanImplementation</Filter>
+    </None>
+    <None Include="..\..\..\..\OneDrive\Documents\MS-UCCS\CS5800\mesh models\Generic-scans\Airless_2.stl">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="vulkan\shaders\raytracer.comp">
       <Filter>Source Files\VulkanImplementation</Filter>
     </None>
   </ItemGroup>

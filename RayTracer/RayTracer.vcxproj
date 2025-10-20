@@ -144,24 +144,26 @@
   <ItemGroup>
     <ClCompile Include="MeshGenerator.cpp" />
     <ClCompile Include="RayTracer.cpp" />
-    <ClCompile Include="RayTracerEngine.cpp" />
     <ClCompile Include="SceneCreator.cpp" />
     <ClCompile Include="StlMesh.cpp" />
     <ClCompile Include="STLReader.cpp" />
     <ClCompile Include="TraceImages.cpp" />
     <ClCompile Include="VectorMath.cpp" />
+    <ClCompile Include="VoxelDDARayTracer.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ImageSaver.h" />
+    <ClInclude Include="IRayTracer.h" />
     <ClInclude Include="Logger.h" />
     <ClInclude Include="MeshGenerator.h" />
-    <ClInclude Include="RayTracerEngine.h" />
+    <ClInclude Include="RayTracerCommon.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="SceneCreator.h" />
     <ClInclude Include="StlMesh.h" />
     <ClInclude Include="STLReader.h" />
     <ClInclude Include="TraceImages.h" />
     <ClInclude Include="VectorMath.h" />
+    <ClInclude Include="VoxelDDARayTracer.h" />
     <ClInclude Include="Voxels.h" />
     <ClInclude Include="vulkan\VulkanRayTracer.h">
       <ExcludedFromBuild>true</ExcludedFromBuild>
@@ -179,7 +181,7 @@
     <None Include="vulkan\VulkanExample.cpp">
       <ExcludedFromBuild>true</ExcludedFromBuild>
     </None>
-    <None Include="vulkan\README_VULKAN.md" />
+    <None Include="vulkan\README.md" />
     <None Include="vulkan\shaders\raytracer.comp" />
   </ItemGroup>
   <ItemGroup>

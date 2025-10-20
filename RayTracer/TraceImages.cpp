@@ -2,25 +2,33 @@
 #include "Logger.h"
 #include <filesystem>
 #include "SceneCreator.h"
-#include "RayTracerEngine.h"
+#include "VoxelDDARayTracer.h"
 #include "ImageSaver.h"
 #include "MeshGenerator.h"
+#include "VoxelDDARayTracer.cpp"
 using namespace std;
 using namespace cg_datastructures;
 
-void TraceImages::TraceImage(std::string gridFileLocation, std::string outputFileName) {
+void TraceImages::TraceImage(std::string gridFileLocation, std::string outputFileName, RayTracingMethod method) {
 	LOG_INFO("========================================");
 	LOG_INFO("Starting image generation");
 	LOG_INFO("Input file: {}", gridFileLocation);
 	LOG_INFO("Output file: {}", outputFileName);
+
+	// Log the ray tracing method
+	std::string methodName;
+	switch (method) {
+		case RayTracingMethod::VOXEL_DDA: methodName = "Voxel Grid DDA"; break;
+		default: methodName = "Unknown"; break;
+	}
+	LOG_INFO("Ray tracing method: {}", methodName);
 	LOG_INFO("========================================");
 
 	try {
-		//Teapot model Image Generation
-		//// Build voxel grids
-		VoxelGrid teapotGrid = generateVoxelGridFromFile(gridFileLocation, 50, 50, 50);
-		// Generate images
-		genateImageFromGrid(teapotGrid, outputFileName);
+		// Build voxel grid
+		VoxelGrid voxelGrid = generateVoxelGridFromFile(gridFileLocation, 50, 50, 50);
+		// Generate images using specified method
+		genateImageFromGrid(voxelGrid, outputFileName, method);
 
 		LOG_INFO("Successfully generated image: {}", outputFileName);
 	}
@@ -48,9 +56,9 @@ void TraceImages::TraceImage(std::string gridFileLocation, std::string outputFil
 
 }
 
-void TraceImages::genateImageFromGrid(VoxelGrid voxelGrid, std::string filename) {
-	// Create ray tracer
-	RayTracerEngine raytracer = RayTracerEngine(voxelGrid);
+void TraceImages::genateImageFromGrid(VoxelGrid voxelGrid, std::string filename, RayTracingMethod method) {
+	// Create ray tracer using factory method
+	std::unique_ptr<IRayTracer> raytracer = createRayTracer(voxelGrid, method);
 
 	// Calculate mesh center and size for camera positioning
 	Vec3 center = {
@@ -85,7 +93,7 @@ void TraceImages::genateImageFromGrid(VoxelGrid voxelGrid, std::string filename)
 	int width = 800, height = 600;
 	LOG_INFO("Rendering {}x{} image...", width, height);
 
-	auto pixels = raytracer.render(camera, width, height);
+	auto pixels = raytracer->render(camera, width, height);
 	LOG_INFO("Rendering complete!");
 	LOG_INFO("Image rendered with {} pixels", pixels.size());
 
@@ -164,3 +172,19 @@ void TraceImages::SaveImage(const std::string& filename,
 			}
 		}
 	}
+
+// Factory method to create appropriate ray tracer
+std::unique_ptr<IRayTracer> TraceImages::createRayTracer(VoxelGrid& voxelGrid, RayTracingMethod method) {
+	switch (method) {
+		case RayTracingMethod::VOXEL_DDA:
+			return std::make_unique<VoxelDDARayTracer>(voxelGrid);
+
+		// Future methods can be added here:
+		// case RayTracingMethod::BVH:
+		//     return std::make_unique<BVHRayTracer>(voxelGrid);
+
+		default:
+			LOG_WARN("Unknown ray tracing method, defaulting to Voxel Grid DDA");
+			return std::make_unique<VoxelDDARayTracer>(voxelGrid);
+	}
+}

@@ -266,7 +266,7 @@ RayHit ARTRayTracer::traverse3DDDA(const Ray& ray) {
 
     // Step 7: 3DDDA main loop - traverse voxels until we exit the grid or find a hit
     // This is where Fujimoto's algorithm shines: we only visit voxels along the ray path
-    int maxSteps = voxelGrid.nx + voxelGrid.ny + voxelGrid.nz; // Safety limit
+    int maxSteps = static_cast<int>(voxelGrid.nx + voxelGrid.ny + voxelGrid.nz); // Safety limit
     int steps = 0;
 
     while (ix >= 0 && ix < static_cast<int>(voxelGrid.nx) &&
@@ -296,7 +296,7 @@ RayHit ARTRayTracer::traverse3DDDA(const Ray& ray) {
                         result.point = add(ray.origin, multiply(ray.direction, t));
                         result.normal = normalize(tri.normal);
                         result.triangleIdx = triIdx;
-                        result.voxelIdx = voxelIdx;
+                        result.voxelIdx = static_cast<unsigned int>(voxelIdx);
                     }
                 }
             }

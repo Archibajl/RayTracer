@@ -55,7 +55,9 @@ struct VoxelHost {
     {
         if (other.triangle_indices != nullptr && other.triangle_capacity > 0) {
             triangle_indices = new unsigned int[other.triangle_capacity];
-            for (size_t i = 0; i < other.triangle_count; ++i) {
+            // Copy only up to the minimum of capacity and count (defensive)
+            size_t count_to_copy = (other.triangle_count < other.triangle_capacity) ? other.triangle_count : other.triangle_capacity;
+            for (size_t i = 0; i < count_to_copy; ++i) {
                 triangle_indices[i] = other.triangle_indices[i];
             }
         } else {
@@ -90,7 +92,9 @@ struct VoxelHost {
 
             if (other.triangle_indices != nullptr && other.triangle_capacity > 0) {
                 triangle_indices = new unsigned int[other.triangle_capacity];
-                for (size_t i = 0; i < other.triangle_count; ++i) {
+                // Copy only up to the minimum of capacity and count (defensive)
+                size_t count_to_copy = (other.triangle_count < other.triangle_capacity) ? other.triangle_count : other.triangle_capacity;
+                for (size_t i = 0; i < count_to_copy; ++i) {
                     triangle_indices[i] = other.triangle_indices[i];
                 }
             } else {
@@ -121,9 +125,10 @@ struct VoxelHost {
 
     // Add triangle index to this voxel
     void addTriangleIndex(unsigned int tri_idx) {
-        if (triangle_count == triangle_capacity) {
+        if (triangle_count >= triangle_capacity) {
             size_t new_capacity = triangle_capacity == 0 ? 4 : triangle_capacity * 2;
             unsigned int* new_indices = new unsigned int[new_capacity];
+            // Copy existing indices (triangle_count will always be <= old capacity here)
             for (size_t i = 0; i < triangle_count; ++i) {
                 new_indices[i] = triangle_indices[i];
             }
@@ -131,7 +136,9 @@ struct VoxelHost {
             triangle_indices = new_indices;
             triangle_capacity = new_capacity;
         }
-        triangle_indices[triangle_count++] = tri_idx;
+        // Now we're guaranteed triangle_count < triangle_capacity
+        triangle_indices[triangle_count] = tri_idx;
+        triangle_count++;
     }
 };
 

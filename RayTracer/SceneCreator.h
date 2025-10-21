@@ -1,10 +1,11 @@
 #pragma once
 
-#include "StlMesh.h"
-#include "Voxels.h"
+#include <cstddef>
 #include <vector>
 #include <algorithm>
 #include <cmath>
+#include "StlMesh.h"
+#include "Voxels.h"
 
 // VoxelGrid structure for CUDA-compatible voxel grid
 struct VoxelGrid {

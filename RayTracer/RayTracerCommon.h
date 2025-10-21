@@ -23,6 +23,7 @@ struct RayHit {
     unsigned int voxelIdx;      // Index of hit voxel (if applicable)
 
     RayHit() : hit(false), t(std::numeric_limits<float>::max()),
+               point{0.0f, 0.0f, 0.0f}, normal{0.0f, 0.0f, 0.0f},
                triangleIdx(0), voxelIdx(0) {}
 };
 

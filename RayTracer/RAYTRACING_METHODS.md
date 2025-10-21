@@ -8,8 +8,9 @@ This ray tracer supports multiple ray tracing algorithms through a pluggable arc
 IRayTracer (interface)
     ↑
     ├── VoxelDDARayTracer (implemented)
+    ├── ARTRayTracer (implemented)
+    ├── OctreeRayTracer (implemented)
     ├── BVHRayTracer (future)
-    ├── OctreeRayTracer (future)
     └── BruteForceRayTracer (future)
 ```
 
@@ -18,6 +19,8 @@ IRayTracer (interface)
 - **`RayTracerCommon.h`**: Common data structures (Ray, RayHit, Camera)
 - **`IRayTracer.h`**: Abstract interface all ray tracers must implement
 - **`VoxelDDARayTracer`**: Grid-based DDA traversal (current default)
+- **`ARTRayTracer`**: ARTS (Accelerated Ray-Tracing System) - Fujimoto's 3DDDA method
+- **`OctreeRayTracer`**: Adaptive octree space subdivision - Glassner's method
 
 ## Available Methods
 
@@ -28,6 +31,42 @@ IRayTracer (interface)
 - **Pros**: Very fast for dense scenes, predictable performance
 - **Cons**: Memory intensive, not great for sparse scenes
 - **Best for**: Solid objects, dense meshes
+
+### 2. ARTS - Accelerated Ray-Tracing System (Implemented)
+- **Class**: `ARTRayTracer`
+- **Enum**: `RayTracingMethod::ART`
+- **Description**: Implementation of Fujimoto's classic 3DDDA (3D Digital Differential Analyzer) from the seminal 1986 paper
+- **Algorithm**: Uses uniform spatial subdivision with 3DDDA traversal
+- **Pros**:
+  - Performance virtually independent of object count
+  - Excellent for scenes with many objects (1000+)
+  - Spatial coherence optimization
+  - Includes detailed performance statistics
+- **Cons**: Memory intensive like other grid methods
+- **Best for**: Scenes with very high object counts, complex meshes
+- **Historical Significance**: One of the first practical ray tracing acceleration structures
+- **Paper**: "ARTS: Accelerated Ray-Tracing System" by Akira Fujimoto, Takayuki Tanaka, and K. Iwata (IEEE CG&A, 1986)
+
+### 3. Octree Space Subdivision (Implemented)
+- **Class**: `OctreeRayTracer`
+- **Enum**: `RayTracingMethod::OCTREE`
+- **Description**: Adaptive octree-based space subdivision from Andrew S. Glassner's 1984 paper
+- **Algorithm**: Non-uniform hierarchical subdivision based on triangle density
+- **Pros**:
+  - Adaptive to scene complexity
+  - Efficient for non-uniformly distributed geometry
+  - Automatically optimizes subdivision depth
+  - Lower memory usage than uniform grids for sparse scenes
+  - Includes detailed statistics (nodes visited, triangle tests)
+- **Cons**:
+  - Slower build time compared to uniform grids
+  - Can be inefficient for uniformly distributed objects
+- **Best for**:
+  - Scenes with non-uniform object distribution
+  - Models with detail concentrated in specific regions
+  - Large scenes with sparse geometry
+- **Historical Significance**: Revolutionary for 1984 - enabled ray tracing hundreds/thousands of objects
+- **Paper**: "Space subdivision for fast ray tracing" by Andrew S. Glassner (IEEE CG&A, Vol. 4, no. 10, 1984, pp 15-22)
 
 ## Using Different Methods
 
@@ -40,10 +79,16 @@ TraceImages tracer;
 tracer.TraceImage("model.stl", "output.png");
 
 // Explicitly specify method
-tracer.TraceImage("model.stl", "output.png", RayTracingMethod::VOXEL_DDA);
+tracer.TraceImage("model.stl", "output_voxel.png", RayTracingMethod::VOXEL_DDA);
+
+// Use ARTS method (Fujimoto's 3DDDA)
+tracer.TraceImage("model.stl", "output_art.png", RayTracingMethod::ART);
+
+// Use Octree method (Glassner's adaptive subdivision)
+tracer.TraceImage("model.stl", "output_octree.png", RayTracingMethod::OCTREE);
 
 // Future: Use BVH
-// tracer.TraceImage("model.stl", "output.png", RayTracingMethod::BVH);
+// tracer.TraceImage("model.stl", "output_bvh.png", RayTracingMethod::BVH);
 ```
 
 ## Adding a New Ray Tracing Method
@@ -150,9 +195,17 @@ You can easily compare different methods by rendering the same scene:
 
 ```cpp
 tracer.TraceImage("bunny.stl", "bunny_voxel.png", RayTracingMethod::VOXEL_DDA);
-tracer.TraceImage("bunny.stl", "bunny_bvh.png", RayTracingMethod::BVH);
-// Compare render times in logs
+tracer.TraceImage("bunny.stl", "bunny_art.png", RayTracingMethod::ART);
+tracer.TraceImage("bunny.stl", "bunny_octree.png", RayTracingMethod::OCTREE);
+// Compare render times and statistics in logs
+
+// Future:
+// tracer.TraceImage("bunny.stl", "bunny_bvh.png", RayTracingMethod::BVH);
 ```
+
+All implementations include detailed statistics logging:
+- **Voxel DDA & ARTS**: Voxels/nodes traversed, triangle tests, averages per ray
+- **Octree**: Octree nodes visited, triangle tests, octree structure info (total nodes, leaf nodes)
 
 ## Future Method Ideas
 

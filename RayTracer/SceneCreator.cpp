@@ -94,7 +94,7 @@ inline VoxelGrid BuildVoxelGridFromStlMesh(StlMeshCuda& mesh, size_t nx, size_t 
     std::vector<cg_datastructures::Triangle> triangles;
     triangles.reserve(mesh.num_tris);
 
-    for (size_t t = 0; t < mesh.num_tris; ++t) {
+    for (unsigned int t = 0; t < mesh.num_tris; ++t) {
         unsigned int i0 = mesh.tris[t * 3 + 0];
         unsigned int i1 = mesh.tris[t * 3 + 1];
         unsigned int i2 = mesh.tris[t * 3 + 2];

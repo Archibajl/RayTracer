@@ -39,9 +39,6 @@
     <ClCompile Include="SceneCreator.cpp">
       <Filter>Source Files\DataStructures</Filter>
     </ClCompile>
-    <ClCompile Include="StlMesh.cpp">
-      <Filter>Source Files\DataStructures</Filter>
-    </ClCompile>
     <ClCompile Include="MeshGenerator.cpp">
       <Filter>Source Files\CUDA</Filter>
     </ClCompile>
@@ -54,7 +51,10 @@
     <ClCompile Include="VectorMath.cpp">
       <Filter>Source Files\Utils</Filter>
     </ClCompile>
-    <ClCompile Include="VoxelDDARayTracer.cpp">
+    <ClCompile Include="ARTRayTracer.cpp">
+      <Filter>Source Files\CPURayTracers</Filter>
+    </ClCompile>
+    <ClCompile Include="OctreeRayTracer.cpp">
       <Filter>Source Files\CPURayTracers</Filter>
     </ClCompile>
   </ItemGroup>
@@ -65,14 +65,8 @@
     <ClInclude Include="MeshGenerator.h">
       <Filter>Source Files\CUDA</Filter>
     </ClInclude>
-    <ClInclude Include="vulkan\VulkanRayTracer.h">
-      <Filter>Source Files\VulkanImplementation</Filter>
-    </ClInclude>
     <ClInclude Include="STLReader.h">
       <Filter>Source Files\Reader</Filter>
-    </ClInclude>
-    <ClInclude Include="StlMesh.h">
-      <Filter>Source Files\DataStructures</Filter>
     </ClInclude>
     <ClInclude Include="Voxels.h">
       <Filter>Source Files\DataStructures</Filter>
@@ -98,8 +92,11 @@
     <ClInclude Include="Logger.h">
       <Filter>Source Files\Reader</Filter>
     </ClInclude>
-    <ClInclude Include="VoxelDDARayTracer.h">
-      <Filter>Source Files\CPURayTracers</Filter>
+    <ClInclude Include="ARTRayTracer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="OctreeRayTracer.h">
+      <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -112,17 +109,8 @@
       <Filter>Resource Files</Filter>
     </None>
     <None Include="vulkan\README.md" />
-    <None Include="vulkan\VulkanExample.cpp">
-      <Filter>Source Files\VulkanImplementation</Filter>
-    </None>
-    <None Include="vulkan\VulkanRayTracer.cpp">
-      <Filter>Source Files\VulkanImplementation</Filter>
-    </None>
     <None Include="..\..\..\..\OneDrive\Documents\MS-UCCS\CS5800\mesh models\Generic-scans\Airless_2.stl">
       <Filter>Resource Files</Filter>
-    </None>
-    <None Include="vulkan\shaders\raytracer.comp">
-      <Filter>Source Files\VulkanImplementation</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>

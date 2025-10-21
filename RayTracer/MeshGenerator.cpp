@@ -122,17 +122,17 @@ void MeshGenerator::printMeshInfoStlMesh(const stl_reader::StlMesh<float, unsign
 }
 
 void MeshGenerator::printMeshInfoStlMesh(const StlMeshCuda& mesh) {
-        LOG_DEBUG("Number of vertices: %zu\n", mesh.num_vrts);
-        LOG_DEBUG("Number of triangles: %zu\n", mesh.num_tris);
+        LOG_DEBUG("Number of vertices: {}\n", mesh.num_vrts);
+        LOG_DEBUG("Number of triangles: {}\n", mesh.num_tris);
 
         // Iterate through all triangles
-        for (size_t i = 0; i < mesh.num_tris; ++i) {
-            LOG_DEBUG("Triangle %zu: ", i);
-            for (size_t j = 0; j < 3; ++j) {
+        for (unsigned int i = 0; i < mesh.num_tris; ++i) {
+            LOG_DEBUG("Triangle {}: ", i);
+            for (unsigned int j = 0; j < 3; ++j) {
                 const float* c = mesh.tri_corner_coords(i, j);
-                LOG_DEBUG("(%f, %f, %f) ", c[0], c[1], c[2]);
+                LOG_DEBUG("({}, {}, {}) ", c[0], c[1], c[2]);
             }
             const float* n = mesh.tri_normal(i);
-            LOG_DEBUG("Normal: (%f, %f, %f)\n", n[0], n[1], n[2]);
+            LOG_DEBUG("Normal: ({}, {}, {})\n", n[0], n[1], n[2]);
         }
 }

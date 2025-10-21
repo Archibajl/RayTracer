@@ -145,19 +145,11 @@
     <ClCompile Include="MeshGenerator.cpp" />
     <ClCompile Include="RayTracer.cpp" />
     <ClCompile Include="SceneCreator.cpp" />
-    <ClCompile Include="StlMesh.cpp" />
     <ClCompile Include="STLReader.cpp" />
     <ClCompile Include="TraceImages.cpp" />
     <ClCompile Include="VectorMath.cpp" />
-    <ClCompile Include="VoxelDDARayTracer.cpp">
-      <ExcludedFromBuild>true</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="ARTRayTracer.cpp">
-      <ExcludedFromBuild>true</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="OctreeRayTracer.cpp">
-      <ExcludedFromBuild>true</ExcludedFromBuild>
-    </ClCompile>
+    <ClCompile Include="ARTRayTracer.cpp" />
+    <ClCompile Include="OctreeRayTracer.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ImageSaver.h" />
@@ -167,17 +159,13 @@
     <ClInclude Include="RayTracerCommon.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="SceneCreator.h" />
-    <ClInclude Include="StlMesh.h" />
     <ClInclude Include="STLReader.h" />
     <ClInclude Include="TraceImages.h" />
     <ClInclude Include="VectorMath.h" />
-    <ClInclude Include="VoxelDDARayTracer.h" />
     <ClInclude Include="ARTRayTracer.h" />
     <ClInclude Include="OctreeRayTracer.h" />
+    <ClInclude Include="StlMesh.h" />
     <ClInclude Include="Voxels.h" />
-    <ClInclude Include="vulkan\VulkanRayTracer.h">
-      <ExcludedFromBuild>true</ExcludedFromBuild>
-    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="RayTracer.rc" />
@@ -185,14 +173,7 @@
   <ItemGroup>
     <None Include="..\..\..\..\OneDrive\Documents\MS-UCCS\CS5800\mesh models\Generic-scans\Airless_2.stl" />
     <None Include="stl2.bin" />
-    <None Include="vulkan\VulkanRayTracer.cpp">
-      <ExcludedFromBuild>true</ExcludedFromBuild>
-    </None>
-    <None Include="vulkan\VulkanExample.cpp">
-      <ExcludedFromBuild>true</ExcludedFromBuild>
-    </None>
     <None Include="vulkan\README.md" />
-    <None Include="vulkan\shaders\raytracer.comp" />
   </ItemGroup>
   <ItemGroup>
     <CudaCompile Include="SceneCreator.cu" />

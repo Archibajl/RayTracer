@@ -2,12 +2,8 @@
 #include "Logger.h"
 #include <filesystem>
 #include "SceneCreator.h"
-#include "VoxelDDARayTracer.h"
-#include "VoxelDDARayTracer.cpp"
 #include "ARTRayTracer.h"
-#include "ARTRayTracer.cpp"
 #include "OctreeRayTracer.h"
-#include "OctreeRayTracer.cpp"
 #include "ImageSaver.h"
 #include "MeshGenerator.h"
 using namespace std;
@@ -183,7 +179,8 @@ void TraceImages::SaveImage(const std::string& filename,
 std::unique_ptr<IRayTracer> TraceImages::createRayTracer(VoxelGrid& voxelGrid, RayTracingMethod method) {
 	switch (method) {
 		case RayTracingMethod::VOXEL_DDA:
-			return std::make_unique<VoxelDDARayTracer>(voxelGrid);
+			// VOXEL_DDA uses ARTS (3DDDA) which is a voxel-based DDA algorithm
+			return std::make_unique<ARTRayTracer>(voxelGrid);
 
 		case RayTracingMethod::ART:
 			return std::make_unique<ARTRayTracer>(voxelGrid);
@@ -196,7 +193,7 @@ std::unique_ptr<IRayTracer> TraceImages::createRayTracer(VoxelGrid& voxelGrid, R
 		//     return std::make_unique<BVHRayTracer>(voxelGrid);
 
 		default:
-			LOG_WARN("Unknown ray tracing method, defaulting to Voxel Grid DDA");
-			return std::make_unique<VoxelDDARayTracer>(voxelGrid);
+			LOG_WARN("Unknown ray tracing method, defaulting to ARTS (3DDDA)");
+			return std::make_unique<ARTRayTracer>(voxelGrid);
 	}
 }

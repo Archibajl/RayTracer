@@ -35,6 +35,17 @@ Ray ARTRayTracer::generateRay(const Camera& camera, float u, float v) {
     return Ray(camera.position, direction);
 }
 
+Vec3 ARTRayTracer::computeShading(const RayHit& hit, float v) const {
+    if (hit.hit) {
+        // Simple solid color for hits
+        return { 0.5f, 0.5f, 0.5f }; // White
+    }
+    else {
+        // Background gradient
+        return { 0.6f + 0.4f * v, 0.6f + 0.4f * v, 0.9f }; // Gray-blue gradient
+    }
+}
+
 std::vector<Vec3> ARTRayTracer::render(const Camera& camera, int width, int height) {
     std::vector<Vec3> frameBuffer(width * height);
 
@@ -56,31 +67,16 @@ std::vector<Vec3> ARTRayTracer::render(const Camera& camera, int width, int heig
             float u = static_cast<float>(x) / static_cast<float>(width);
             float v = static_cast<float>(y) / static_cast<float>(height);
 
-            // Generate ray
+            // Generate and trace ray
             Ray ray = generateRay(camera, u, v);
-
-            // Trace ray using 3DDDA
             RayHit hit = traceRay(ray);
 
-            // Simple shading
-            Vec3 color;
             if (hit.hit) {
                 hitCount++;
-                // Normal-based shading
-                Vec3 lightDir = normalize({ 1.0f, 1.0f, -1.0f });
-                float diffuse = std::max(0.0f, dot(hit.normal, lightDir));
-                float ambient = 0.3f;
-                float intensity = std::min(1.0f, ambient + diffuse * 0.7f);
-
-                // Slightly different color scheme from VoxelDDA
-                color = { intensity * 0.7f, intensity * 0.8f, intensity * 0.5f }; // Green tint
-            }
-            else {
-                // Background gradient
-                float t = v;
-                color = { 0.6f + 0.4f * t, 0.6f + 0.4f * t, 0.9f }; // Gray-blue gradient
             }
 
+            // Compute shading
+            Vec3 color = computeShading(hit, v);
             frameBuffer[y * width + x] = color;
         }
     }
@@ -169,6 +165,150 @@ size_t ARTRayTracer::getVoxelIndex(int ix, int iy, int iz) const {
     return ix + voxelGrid.nx * (iy + voxelGrid.ny * iz);
 }
 
+ARTRayTracer::VoxelTraversalState ARTRayTracer::initializeVoxelTraversal(
+    const Ray& ray, float tMin) const {
+
+    VoxelTraversalState state;
+
+    // Calculate entry point into grid
+    Vec3 startPoint = ray.origin;
+    if (tMin > 0.0f) {
+        // Ray origin is outside grid, use entry point
+        startPoint = add(ray.origin, multiply(ray.direction, tMin + 1e-5f));
+    }
+
+    // Convert world position to voxel indices (O(1) lookup)
+    state.ix = static_cast<int>((startPoint.x - voxelGrid.minBound.x) / voxelGrid.voxelSize.x);
+    state.iy = static_cast<int>((startPoint.y - voxelGrid.minBound.y) / voxelGrid.voxelSize.y);
+    state.iz = static_cast<int>((startPoint.z - voxelGrid.minBound.z) / voxelGrid.voxelSize.z);
+
+    // Clamp to grid bounds
+    state.ix = std::max(0, std::min(static_cast<int>(voxelGrid.nx) - 1, state.ix));
+    state.iy = std::max(0, std::min(static_cast<int>(voxelGrid.ny) - 1, state.iy));
+    state.iz = std::max(0, std::min(static_cast<int>(voxelGrid.nz) - 1, state.iz));
+
+    return state;
+}
+
+void ARTRayTracer::computeVoxelStepDirection(const Ray& ray, VoxelTraversalState& state) const {
+    const float EPSILON = 1e-6f;
+
+    // Determine step direction (Fujimoto's directional indices)
+    state.stepX = (ray.direction.x > 0) ? 1 : -1;
+    state.stepY = (ray.direction.y > 0) ? 1 : -1;
+    state.stepZ = (ray.direction.z > 0) ? 1 : -1;
+
+    // Calculate tDelta - parameter increment to cross one voxel
+    state.tDeltaX = (std::abs(ray.direction.x) > EPSILON) ?
+        std::abs(voxelGrid.voxelSize.x / ray.direction.x) : std::numeric_limits<float>::max();
+    state.tDeltaY = (std::abs(ray.direction.y) > EPSILON) ?
+        std::abs(voxelGrid.voxelSize.y / ray.direction.y) : std::numeric_limits<float>::max();
+    state.tDeltaZ = (std::abs(ray.direction.z) > EPSILON) ?
+        std::abs(voxelGrid.voxelSize.z / ray.direction.z) : std::numeric_limits<float>::max();
+}
+
+void ARTRayTracer::computeTMaxValues(const Ray& ray, VoxelTraversalState& state) const {
+    const float EPSILON = 1e-6f;
+
+    // Calculate tMax - parameter value at next voxel boundary
+    if (std::abs(ray.direction.x) > EPSILON) {
+        if (ray.direction.x > 0) {
+            state.tMaxX = ((voxelGrid.minBound.x + (state.ix + 1) * voxelGrid.voxelSize.x) - ray.origin.x) / ray.direction.x;
+        }
+        else {
+            state.tMaxX = ((voxelGrid.minBound.x + state.ix * voxelGrid.voxelSize.x) - ray.origin.x) / ray.direction.x;
+        }
+    }
+    else {
+        state.tMaxX = std::numeric_limits<float>::max();
+    }
+
+    if (std::abs(ray.direction.y) > EPSILON) {
+        if (ray.direction.y > 0) {
+            state.tMaxY = ((voxelGrid.minBound.y + (state.iy + 1) * voxelGrid.voxelSize.y) - ray.origin.y) / ray.direction.y;
+        }
+        else {
+            state.tMaxY = ((voxelGrid.minBound.y + state.iy * voxelGrid.voxelSize.y) - ray.origin.y) / ray.direction.y;
+        }
+    }
+    else {
+        state.tMaxY = std::numeric_limits<float>::max();
+    }
+
+    if (std::abs(ray.direction.z) > EPSILON) {
+        if (ray.direction.z > 0) {
+            state.tMaxZ = ((voxelGrid.minBound.z + (state.iz + 1) * voxelGrid.voxelSize.z) - ray.origin.z) / ray.direction.z;
+        }
+        else {
+            state.tMaxZ = ((voxelGrid.minBound.z + state.iz * voxelGrid.voxelSize.z) - ray.origin.z) / ray.direction.z;
+        }
+    }
+    else {
+        state.tMaxZ = std::numeric_limits<float>::max();
+    }
+}
+
+void ARTRayTracer::advanceToNextVoxel(VoxelTraversalState& state) const {
+    // Choose the axis with the smallest tMax (closest boundary)
+    if (state.tMaxX < state.tMaxY) {
+        if (state.tMaxX < state.tMaxZ) {
+            // Step in X direction
+            state.ix += state.stepX;
+            state.tMaxX += state.tDeltaX;
+        }
+        else {
+            // Step in Z direction
+            state.iz += state.stepZ;
+            state.tMaxZ += state.tDeltaZ;
+        }
+    }
+    else {
+        if (state.tMaxY < state.tMaxZ) {
+            // Step in Y direction
+            state.iy += state.stepY;
+            state.tMaxY += state.tDeltaY;
+        }
+        else {
+            // Step in Z direction
+            state.iz += state.stepZ;
+            state.tMaxZ += state.tDeltaZ;
+        }
+    }
+}
+
+bool ARTRayTracer::testVoxelTriangles(const Ray& ray, int ix, int iy, int iz, RayHit& result) {
+    voxelsTraversed++; // Statistics
+
+    size_t voxelIdx = getVoxelIndex(ix, iy, iz);
+    const Voxel& voxel = voxelGrid.voxels[voxelIdx];
+
+    // If voxel is occupied, test triangles (spatial coherence)
+    if (!voxel.occupied || voxel.triangle_count == 0) {
+        return false;
+    }
+
+    for (unsigned int i = 0; i < voxel.triangle_count; ++i) {
+        trianglesTests++; // Statistics
+
+        unsigned int triIdx = voxelGrid.triangle_indices[voxel.triangle_start_idx + i];
+        const Triangle& tri = voxelGrid.triangles[triIdx];
+
+        float t, u, v;
+        if (rayTriangleIntersection(ray, tri, t, u, v)) {
+            if (t < result.t) {
+                result.hit = true;
+                result.t = t;
+                result.point = add(ray.origin, multiply(ray.direction, t));
+                result.normal = normalize(tri.normal);
+                result.triangleIdx = triIdx;
+                result.voxelIdx = static_cast<unsigned int>(voxelIdx);
+            }
+        }
+    }
+
+    return result.hit;
+}
+
 /**
  * ARTS 3DDDA Algorithm
  *
@@ -190,150 +330,34 @@ RayHit ARTRayTracer::traverse3DDDA(const Ray& ray) {
         return result; // Ray misses the entire grid
     }
 
-    // Step 2: Calculate entry point into grid
-    Vec3 startPoint = ray.origin;
-    if (tMin > 0.0f) {
-        // Ray origin is outside grid, use entry point
-        startPoint = add(ray.origin, multiply(ray.direction, tMin + 1e-5f));
-    }
+    // Step 2: Initialize voxel traversal state
+    VoxelTraversalState state = initializeVoxelTraversal(ray, tMin);
 
-    // Step 3: Convert world position to voxel indices
-    // This is O(1) thanks to uniform spatial subdivision
-    int ix = static_cast<int>((startPoint.x - voxelGrid.minBound.x) / voxelGrid.voxelSize.x);
-    int iy = static_cast<int>((startPoint.y - voxelGrid.minBound.y) / voxelGrid.voxelSize.y);
-    int iz = static_cast<int>((startPoint.z - voxelGrid.minBound.z) / voxelGrid.voxelSize.z);
+    // Step 3: Compute step directions and delta values
+    computeVoxelStepDirection(ray, state);
 
-    // Clamp to grid bounds
-    ix = std::max(0, std::min(static_cast<int>(voxelGrid.nx) - 1, ix));
-    iy = std::max(0, std::min(static_cast<int>(voxelGrid.ny) - 1, iy));
-    iz = std::max(0, std::min(static_cast<int>(voxelGrid.nz) - 1, iz));
+    // Step 4: Compute initial tMax values
+    computeTMaxValues(ray, state);
 
-    // Step 4: Determine step direction (Fujimoto's directional indices)
-    int stepX = (ray.direction.x > 0) ? 1 : -1;
-    int stepY = (ray.direction.y > 0) ? 1 : -1;
-    int stepZ = (ray.direction.z > 0) ? 1 : -1;
-
-    // Step 5: Calculate tDelta - parameter increment to cross one voxel
-    // This is a key optimization: pre-compute how far along the ray we need
-    // to go to traverse one full voxel in each dimension
-    const float EPSILON = 1e-6f;
-    float tDeltaX = (std::abs(ray.direction.x) > EPSILON) ?
-        std::abs(voxelGrid.voxelSize.x / ray.direction.x) : std::numeric_limits<float>::max();
-    float tDeltaY = (std::abs(ray.direction.y) > EPSILON) ?
-        std::abs(voxelGrid.voxelSize.y / ray.direction.y) : std::numeric_limits<float>::max();
-    float tDeltaZ = (std::abs(ray.direction.z) > EPSILON) ?
-        std::abs(voxelGrid.voxelSize.z / ray.direction.z) : std::numeric_limits<float>::max();
-
-    // Step 6: Calculate tMax - parameter value at next voxel boundary
-    // This is the core of the 3DDDA: we track when we'll cross each boundary
-    float tMaxX, tMaxY, tMaxZ;
-
-    if (std::abs(ray.direction.x) > EPSILON) {
-        if (ray.direction.x > 0) {
-            tMaxX = ((voxelGrid.minBound.x + (ix + 1) * voxelGrid.voxelSize.x) - ray.origin.x) / ray.direction.x;
-        }
-        else {
-            tMaxX = ((voxelGrid.minBound.x + ix * voxelGrid.voxelSize.x) - ray.origin.x) / ray.direction.x;
-        }
-    }
-    else {
-        tMaxX = std::numeric_limits<float>::max();
-    }
-
-    if (std::abs(ray.direction.y) > EPSILON) {
-        if (ray.direction.y > 0) {
-            tMaxY = ((voxelGrid.minBound.y + (iy + 1) * voxelGrid.voxelSize.y) - ray.origin.y) / ray.direction.y;
-        }
-        else {
-            tMaxY = ((voxelGrid.minBound.y + iy * voxelGrid.voxelSize.y) - ray.origin.y) / ray.direction.y;
-        }
-    }
-    else {
-        tMaxY = std::numeric_limits<float>::max();
-    }
-
-    if (std::abs(ray.direction.z) > EPSILON) {
-        if (ray.direction.z > 0) {
-            tMaxZ = ((voxelGrid.minBound.z + (iz + 1) * voxelGrid.voxelSize.z) - ray.origin.z) / ray.direction.z;
-        }
-        else {
-            tMaxZ = ((voxelGrid.minBound.z + iz * voxelGrid.voxelSize.z) - ray.origin.z) / ray.direction.z;
-        }
-    }
-    else {
-        tMaxZ = std::numeric_limits<float>::max();
-    }
-
-    // Step 7: 3DDDA main loop - traverse voxels until we exit the grid or find a hit
-    // This is where Fujimoto's algorithm shines: we only visit voxels along the ray path
-    int maxSteps = static_cast<int>(voxelGrid.nx + voxelGrid.ny + voxelGrid.nz); // Safety limit
+    // Step 5: 3DDDA main loop - traverse voxels until we exit the grid or find a hit
+    int maxSteps = static_cast<int>(voxelGrid.nx + voxelGrid.ny + voxelGrid.nz);
     int steps = 0;
 
-    while (ix >= 0 && ix < static_cast<int>(voxelGrid.nx) &&
-           iy >= 0 && iy < static_cast<int>(voxelGrid.ny) &&
-           iz >= 0 && iz < static_cast<int>(voxelGrid.nz) &&
+    while (state.ix >= 0 && state.ix < static_cast<int>(voxelGrid.nx) &&
+           state.iy >= 0 && state.iy < static_cast<int>(voxelGrid.ny) &&
+           state.iz >= 0 && state.iz < static_cast<int>(voxelGrid.nz) &&
            steps < maxSteps) {
 
         steps++;
-        voxelsTraversed++; // Statistics
 
-        size_t voxelIdx = getVoxelIndex(ix, iy, iz);
-        const Voxel& voxel = voxelGrid.voxels[voxelIdx];
-
-        // Step 8: If voxel is occupied, test triangles (spatial coherence)
-        if (voxel.occupied && voxel.triangle_count > 0) {
-            for (unsigned int i = 0; i < voxel.triangle_count; ++i) {
-                trianglesTests++; // Statistics
-
-                unsigned int triIdx = voxelGrid.triangle_indices[voxel.triangle_start_idx + i];
-                const Triangle& tri = voxelGrid.triangles[triIdx];
-
-                float t, u, v;
-                if (rayTriangleIntersection(ray, tri, t, u, v)) {
-                    if (t < result.t) {
-                        result.hit = true;
-                        result.t = t;
-                        result.point = add(ray.origin, multiply(ray.direction, t));
-                        result.normal = normalize(tri.normal);
-                        result.triangleIdx = triIdx;
-                        result.voxelIdx = static_cast<unsigned int>(voxelIdx);
-                    }
-                }
-            }
-
-            // ARTS optimization: Return first hit found
-            // This works because we traverse in front-to-back order
-            if (result.hit) {
-                return result;
-            }
+        // Test triangles in current voxel
+        if (testVoxelTriangles(ray, state.ix, state.iy, state.iz, result)) {
+            // ARTS optimization: Return first hit found (front-to-back traversal)
+            return result;
         }
 
-        // Step 9: Advance to next voxel
-        // Choose the axis with the smallest tMax (closest boundary)
-        if (tMaxX < tMaxY) {
-            if (tMaxX < tMaxZ) {
-                // Step in X direction
-                ix += stepX;
-                tMaxX += tDeltaX;
-            }
-            else {
-                // Step in Z direction
-                iz += stepZ;
-                tMaxZ += tDeltaZ;
-            }
-        }
-        else {
-            if (tMaxY < tMaxZ) {
-                // Step in Y direction
-                iy += stepY;
-                tMaxY += tDeltaY;
-            }
-            else {
-                // Step in Z direction
-                iz += stepZ;
-                tMaxZ += tDeltaZ;
-            }
-        }
+        // Advance to next voxel
+        advanceToNextVoxel(state);
     }
 
     return result;

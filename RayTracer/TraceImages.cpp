@@ -31,12 +31,12 @@ void TraceImages::TraceImage(std::string gridFileLocation, std::string outputFil
 	auto totalStart = std::chrono::high_resolution_clock::now();
 
 	try {
-		// Build voxel grid
+		// Build or load voxel grid
 		auto voxelStart = std::chrono::high_resolution_clock::now();
-		VoxelGrid voxelGrid = generateVoxelGridFromFile(gridFileLocation, 50, 50, 50);
+		VoxelGrid voxelGrid = loadOrGenerateVoxelGrid(gridFileLocation, 50, 50, 50);
 		auto voxelEnd = std::chrono::high_resolution_clock::now();
 		auto voxelDuration = std::chrono::duration_cast<std::chrono::milliseconds>(voxelEnd - voxelStart);
-		LOG_INFO("Voxel grid generation time: {:.3f} seconds", voxelDuration.count() / 1000.0);
+		LOG_INFO("Voxel grid load/generation time: {:.3f} seconds", voxelDuration.count() / 1000.0);
 
 		// Generate images using specified method
 		auto raytraceStart = std::chrono::high_resolution_clock::now();
@@ -61,21 +61,6 @@ void TraceImages::TraceImage(std::string gridFileLocation, std::string outputFil
 		LOG_ERROR("========================================");
 		// Don't re-throw, just continue to next image
 	}
-
-	////Teapot model Image Generation
-	////// Build voxel grids
-	//VoxelGrid teapotGrid = generateVoxelGridFromFile("C:\\Users\\j`\\OneDrive\\Documents\\MS-UCCS\\CS5800\\mesh models\\teapot.stl", 50, 50, 50);
-	//// Generate images
-	//genateImageFromGrid(teapotGrid, "teapot.png");
-	//teapotGrid.~VoxelGrid();
-
-	////Teapot model Image Generation
-	////// Build voxel grids
-	//VoxelGrid teapotGrid = generateVoxelGridFromFile("C:\\Users\\j`\\OneDrive\\Documents\\MS-UCCS\\CS5800\\mesh models\\teapot.stl", 50, 50, 50);
-	//// Generate images
-	//genateImageFromGrid(teapotGrid, "teapot.png");
-	//teapotGrid.~VoxelGrid();
-
 }
 
 void TraceImages::genateImageFromGrid(VoxelGrid voxelGrid, std::string filename, RayTracingMethod method) {
@@ -291,28 +276,6 @@ VoxelGrid TraceImages::generateVoxelGridFromFile(const std::string filepath, int
 	);
 }
 
-VoxelGrid TraceImages::generateVoxelGridFromMesh(StlMeshCuda mesh, int nx, int ny, int nz) {
-		// Build voxel grid from mesh
-		VoxelGrid voxelGrid = BuildVoxelGridFromStlMeshCuda(mesh, nx, ny, nz);
-
-		LOG_INFO("Voxel size: ({}, {}, {})",
-			voxelGrid.voxelSize.x,
-			voxelGrid.voxelSize.y,
-			voxelGrid.voxelSize.z);
-		LOG_INFO("Grid bounds: min=({}, {}, {}), max=({}, {}, {})",
-			voxelGrid.minBound.x, voxelGrid.minBound.y, voxelGrid.minBound.z,
-			voxelGrid.maxBound.x, voxelGrid.maxBound.y, voxelGrid.maxBound.z);
-
-		// Count occupied voxels
-		int occupiedCount = 0;
-		for (const auto& voxel : voxelGrid.voxels) {
-			if (voxel.occupied) occupiedCount++;
-		}
-		LOG_INFO("Occupied voxels: {} / {}", occupiedCount, voxelGrid.voxels.size());
-
-		return voxelGrid;
-	}
-
 void TraceImages::SaveImage(const std::string& filename,
 	const std::vector<cg_datastructures::Vec3>& pixels,
 	int width, int height) {
@@ -349,6 +312,50 @@ void TraceImages::SaveImage(const std::string& filename,
 			}
 		}
 	}
+
+VoxelGrid TraceImages::loadOrGenerateVoxelGrid(const std::string& filepath, int nx, int ny, int nz) {
+	// Check if filepath is a .voxgrid file (pre-saved voxel grid)
+	std::filesystem::path path(filepath);
+	std::string extension = path.extension().string();
+
+	// Convert extension to lowercase for case-insensitive comparison
+	std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
+
+	if (extension == ".voxgrid") {
+		// Load pre-saved voxel grid
+		LOG_INFO("Loading pre-saved voxel grid from: {}", filepath);
+		try {
+			VoxelGrid grid = VoxelGrid::loadFromFile(filepath);
+			LOG_INFO("Successfully loaded voxel grid from file");
+			return grid;
+		}
+		catch (const std::exception& e) {
+			LOG_ERROR("Failed to load voxel grid: {}", e.what());
+			throw;
+		}
+	}
+	else if (extension == ".stl") {
+		// Generate voxel grid from STL file
+		LOG_INFO("Generating voxel grid from STL file: {}", filepath);
+		VoxelGrid grid = generateVoxelGridFromFile(filepath, nx, ny, nz);
+
+		// Optionally save the generated voxel grid for faster loading next time
+		std::string voxgridPath = path.replace_extension(".voxgrid").string();
+		LOG_INFO("Saving voxel grid to: {}", voxgridPath);
+		if (grid.saveToFile(voxgridPath)) {
+			LOG_INFO("Voxel grid cached successfully");
+		}
+		else {
+			LOG_WARN("Failed to cache voxel grid");
+		}
+
+		return grid;
+	}
+	else {
+		LOG_ERROR("Unsupported file format: {}. Expected .stl or .voxgrid", extension);
+		throw std::runtime_error("Unsupported file format: " + extension);
+	}
+}
 
 // Factory method to create appropriate ray tracer
 std::unique_ptr<IRayTracer> TraceImages::createRayTracer(VoxelGrid& voxelGrid, RayTracingMethod method) {

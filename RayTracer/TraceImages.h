@@ -40,7 +40,7 @@ private:
                             RayTracingMethod method);
 
     VoxelGrid generateVoxelGridFromFile(const std::string filepath, int nx, int ny, int nz);
-    VoxelGrid generateVoxelGridFromMesh(StlMeshCuda mesh, int nx, int ny, int nz);
+    VoxelGrid loadOrGenerateVoxelGrid(const std::string& filepath, int nx, int ny, int nz);
     void SaveImage(const std::string& filename,
                    const std::vector<cg_datastructures::Vec3>& pixels,
                    int width, int height);

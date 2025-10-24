@@ -41,6 +41,28 @@ private:
     // Core ARTS/3DDDA algorithm
     cg_datastructures::RayHit traverse3DDDA(const cg_datastructures::Ray& ray);
 
+    // 3DDDA traversal helper methods
+    struct VoxelTraversalState {
+        int ix, iy, iz;           // Current voxel indices
+        int stepX, stepY, stepZ;  // Step direction
+        float tMaxX, tMaxY, tMaxZ; // Ray parameter at next voxel boundary
+        float tDeltaX, tDeltaY, tDeltaZ; // Parameter increment per voxel
+    };
+
+    VoxelTraversalState initializeVoxelTraversal(const cg_datastructures::Ray& ray,
+                                                  float tMin) const;
+    void computeVoxelStepDirection(const cg_datastructures::Ray& ray,
+                                   VoxelTraversalState& state) const;
+    void computeTMaxValues(const cg_datastructures::Ray& ray,
+                           VoxelTraversalState& state) const;
+    void advanceToNextVoxel(VoxelTraversalState& state) const;
+    bool testVoxelTriangles(const cg_datastructures::Ray& ray,
+                            int ix, int iy, int iz,
+                            cg_datastructures::RayHit& result);
+
+    // Rendering helper methods
+    cg_datastructures::Vec3 computeShading(const cg_datastructures::RayHit& hit, float v) const;
+
     // Helper functions
     cg_datastructures::Ray generateRay(const cg_datastructures::Camera& camera, float u, float v);
     bool rayBoxIntersection(const cg_datastructures::Ray& ray,

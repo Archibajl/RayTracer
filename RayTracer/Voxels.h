@@ -1,9 +1,6 @@
 #ifndef CG_DATASTRUCTURES_VOXELS_H
 #define CG_DATASTRUCTURES_VOXELS_H
 
-#include <cuda_runtime.h>
-#include <vector_types.h>
-
 namespace cg_datastructures {
 
 struct Vec3 {

@@ -42,6 +42,17 @@ Ray OctreeRayTracer::generateRay(const Camera& camera, float u, float v) {
     return Ray(camera.position, direction);
 }
 
+Vec3 OctreeRayTracer::computeShading(const RayHit& hit, float v) const {
+    if (hit.hit) {
+        // Simple solid color for hits
+        return { 1.0f, 1.0f, 1.0f }; // White
+    }
+    else {
+        // Background gradient
+        return { 0.5f + 0.3f * v, 0.5f + 0.3f * v, 0.7f + 0.3f * v }; // Purple gradient
+    }
+}
+
 std::vector<Vec3> OctreeRayTracer::render(const Camera& camera, int width, int height) {
     std::vector<Vec3> frameBuffer(width * height);
 
@@ -63,31 +74,16 @@ std::vector<Vec3> OctreeRayTracer::render(const Camera& camera, int width, int h
             float u = static_cast<float>(x) / static_cast<float>(width);
             float v = static_cast<float>(y) / static_cast<float>(height);
 
-            // Generate ray
+            // Generate and trace ray
             Ray ray = generateRay(camera, u, v);
-
-            // Trace ray using octree
             RayHit hit = traceRay(ray);
 
-            // Simple shading
-            Vec3 color;
             if (hit.hit) {
                 hitCount++;
-                // Normal-based shading
-                Vec3 lightDir = normalize({ 1.0f, 1.0f, -1.0f });
-                float diffuse = std::max(0.0f, dot(hit.normal, lightDir));
-                float ambient = 0.3f;
-                float intensity = std::min(1.0f, ambient + diffuse * 0.7f);
-
-                // Octree gets a purple/magenta tint
-                color = { intensity * 0.9f, intensity * 0.5f, intensity * 0.9f };
-            }
-            else {
-                // Background gradient
-                float t = v;
-                color = { 0.5f + 0.3f * t, 0.5f + 0.3f * t, 0.7f + 0.3f * t }; // Purple gradient
             }
 
+            // Compute shading
+            Vec3 color = computeShading(hit, v);
             frameBuffer[y * width + x] = color;
         }
     }
@@ -197,6 +193,45 @@ void OctreeRayTracer::buildOctree() {
     LOG_INFO("[{}] Subdivision complete", getMethodName());
 }
 
+void OctreeRayTracer::createChildNodes(OctreeNode* node, const Vec3& center) {
+    // Create 8 children (octants) using the center point
+    Vec3 childBounds[8][2] = {
+        // Bottom 4 octants (z = min to center)
+        { {node->minBound.x, node->minBound.y, node->minBound.z}, {center.x, center.y, center.z} },  // 0: ---
+        { {center.x, node->minBound.y, node->minBound.z}, {node->maxBound.x, center.y, center.z} },  // 1: +--
+        { {node->minBound.x, center.y, node->minBound.z}, {center.x, node->maxBound.y, center.z} },  // 2: -+-
+        { {center.x, center.y, node->minBound.z}, {node->maxBound.x, node->maxBound.y, center.z} },  // 3: ++-
+        // Top 4 octants (z = center to max)
+        { {node->minBound.x, node->minBound.y, center.z}, {center.x, center.y, node->maxBound.z} },  // 4: --+
+        { {center.x, node->minBound.y, center.z}, {node->maxBound.x, center.y, node->maxBound.z} },  // 5: +-+
+        { {node->minBound.x, center.y, center.z}, {center.x, node->maxBound.y, node->maxBound.z} },  // 6: -++
+        { {center.x, center.y, center.z}, {node->maxBound.x, node->maxBound.y, node->maxBound.z} }   // 7: +++
+    };
+
+    for (int i = 0; i < 8; ++i) {
+        node->children[i] = std::make_unique<OctreeNode>(childBounds[i][0], childBounds[i][1]);
+        totalNodes++;
+    }
+}
+
+void OctreeRayTracer::distributeTrianglesToChildren(OctreeNode* node) {
+    // Distribute triangles to children based on overlap
+    for (unsigned int triIdx : node->triangleIndices) {
+        const Triangle& tri = voxelGrid.triangles[triIdx];
+
+        // Check which children this triangle overlaps
+        for (int i = 0; i < 8; ++i) {
+            if (triangleIntersectsBox(tri, node->children[i]->minBound, node->children[i]->maxBound)) {
+                node->children[i]->triangleIndices.push_back(triIdx);
+            }
+        }
+    }
+
+    // Clear parent's triangle list (moved to children)
+    node->triangleIndices.clear();
+    node->isLeaf = false;
+}
+
 /**
  * Subdivide a node if it contains too many triangles
  *
@@ -212,53 +247,70 @@ void OctreeRayTracer::subdivideNode(OctreeNode* node, int depth) {
         return;
     }
 
-    // Calculate octant bounds
+    // Calculate octant center
     Vec3 center = {
         (node->minBound.x + node->maxBound.x) * 0.5f,
         (node->minBound.y + node->maxBound.y) * 0.5f,
         (node->minBound.z + node->maxBound.z) * 0.5f
     };
 
-    // Create 8 children (octants)
-    Vec3 childBounds[8][2] = {
-        // Bottom 4 octants (z = min to center)
-        { {node->minBound.x, node->minBound.y, node->minBound.z}, {center.x, center.y, center.z} },  // 0: ---
-        { {center.x, node->minBound.y, node->minBound.z}, {node->maxBound.x, center.y, center.z} },  // 1: +--
-        { {node->minBound.x, center.y, node->minBound.z}, {center.x, node->maxBound.y, center.z} },  // 2: -+-
-        { {center.x, center.y, node->minBound.z}, {node->maxBound.x, node->maxBound.y, center.z} },  // 3: ++-
-        // Top 4 octants (z = center to max)
-        { {node->minBound.x, node->minBound.y, center.z}, {center.x, center.y, node->maxBound.z} },  // 4: --+
-        { {center.x, node->minBound.y, center.z}, {node->maxBound.x, center.y, node->maxBound.z} },  // 5: +-+
-        { {node->minBound.x, center.y, center.z}, {center.x, node->maxBound.y, node->maxBound.z} },  // 6: -++
-        { {center.x, center.y, center.z}, {node->maxBound.x, node->maxBound.y, node->maxBound.z} }   // 7: +++
-    };
+    // Create 8 child nodes
+    createChildNodes(node, center);
 
-    // Create child nodes
-    for (int i = 0; i < 8; ++i) {
-        node->children[i] = std::make_unique<OctreeNode>(childBounds[i][0], childBounds[i][1]);
-        totalNodes++;
-    }
-
-    // Distribute triangles to children
-    for (unsigned int triIdx : node->triangleIndices) {
-        const Triangle& tri = voxelGrid.triangles[triIdx];
-
-        // Check which children this triangle overlaps
-        for (int i = 0; i < 8; ++i) {
-            if (triangleIntersectsBox(tri, childBounds[i][0], childBounds[i][1])) {
-                node->children[i]->triangleIndices.push_back(triIdx);
-            }
-        }
-    }
-
-    // Clear parent's triangle list (moved to children)
-    node->triangleIndices.clear();
-    node->isLeaf = false;
+    // Distribute triangles to appropriate children
+    distributeTrianglesToChildren(node);
 
     // Recursively subdivide children
     for (int i = 0; i < 8; ++i) {
         subdivideNode(node->children[i].get(), depth + 1);
     }
+}
+
+bool OctreeRayTracer::checkTriangleBoxAABBOverlap(
+    const Vec3& v0, const Vec3& v1, const Vec3& v2,
+    const Vec3& boxHalfSize) const {
+
+    // Test triangle AABB vs box AABB
+    Vec3 triMin = {
+        std::min(std::min(v0.x, v1.x), v2.x),
+        std::min(std::min(v0.y, v1.y), v2.y),
+        std::min(std::min(v0.z, v1.z), v2.z)
+    };
+
+    Vec3 triMax = {
+        std::max(std::max(v0.x, v1.x), v2.x),
+        std::max(std::max(v0.y, v1.y), v2.y),
+        std::max(std::max(v0.z, v1.z), v2.z)
+    };
+
+    if (triMin.x > boxHalfSize.x || triMax.x < -boxHalfSize.x) return false;
+    if (triMin.y > boxHalfSize.y || triMax.y < -boxHalfSize.y) return false;
+    if (triMin.z > boxHalfSize.z || triMax.z < -boxHalfSize.z) return false;
+
+    return true;
+}
+
+bool OctreeRayTracer::checkTrianglePlaneBoxIntersection(
+    const Vec3& v0, const Vec3& v1, const Vec3& v2,
+    const Vec3& boxHalfSize) const {
+
+    // Test plane of triangle vs box
+    Vec3 normal = normalize(cross(subtract(v1, v0), subtract(v2, v0)));
+    float d = dot(normal, v0);
+
+    // Find the box vertices that are min/max along the normal direction
+    Vec3 vmin, vmax;
+    vmin.x = (normal.x > 0) ? -boxHalfSize.x : boxHalfSize.x;
+    vmin.y = (normal.y > 0) ? -boxHalfSize.y : boxHalfSize.y;
+    vmin.z = (normal.z > 0) ? -boxHalfSize.z : boxHalfSize.z;
+    vmax.x = -vmin.x;
+    vmax.y = -vmin.y;
+    vmax.z = -vmin.z;
+
+    if (dot(normal, vmin) + d > 0) return false;
+    if (dot(normal, vmax) + d < 0) return false;
+
+    return true;
 }
 
 /**
@@ -270,6 +322,7 @@ bool OctreeRayTracer::triangleIntersectsBox(
     const Vec3& boxMin,
     const Vec3& boxMax) {
 
+    // Transform to box-centered coordinate system
     Vec3 boxCenter = {
         (boxMin.x + boxMax.x) * 0.5f,
         (boxMin.y + boxMax.y) * 0.5f,
@@ -288,36 +341,14 @@ bool OctreeRayTracer::triangleIntersectsBox(
     Vec3 v2 = subtract(tri.v2, boxCenter);
 
     // Test 1: Triangle AABB vs box AABB
-    Vec3 triMin = {
-        std::min(std::min(v0.x, v1.x), v2.x),
-        std::min(std::min(v0.y, v1.y), v2.y),
-        std::min(std::min(v0.z, v1.z), v2.z)
-    };
-
-    Vec3 triMax = {
-        std::max(std::max(v0.x, v1.x), v2.x),
-        std::max(std::max(v0.y, v1.y), v2.y),
-        std::max(std::max(v0.z, v1.z), v2.z)
-    };
-
-    if (triMin.x > boxHalfSize.x || triMax.x < -boxHalfSize.x) return false;
-    if (triMin.y > boxHalfSize.y || triMax.y < -boxHalfSize.y) return false;
-    if (triMin.z > boxHalfSize.z || triMax.z < -boxHalfSize.z) return false;
+    if (!checkTriangleBoxAABBOverlap(v0, v1, v2, boxHalfSize)) {
+        return false;
+    }
 
     // Test 2: Plane of triangle vs box
-    Vec3 normal = normalize(cross(subtract(v1, v0), subtract(v2, v0)));
-    float d = dot(normal, v0);
-
-    Vec3 vmin, vmax;
-    vmin.x = (normal.x > 0) ? -boxHalfSize.x : boxHalfSize.x;
-    vmin.y = (normal.y > 0) ? -boxHalfSize.y : boxHalfSize.y;
-    vmin.z = (normal.z > 0) ? -boxHalfSize.z : boxHalfSize.z;
-    vmax.x = -vmin.x;
-    vmax.y = -vmin.y;
-    vmax.z = -vmin.z;
-
-    if (dot(normal, vmin) + d > 0) return false;
-    if (dot(normal, vmax) + d < 0) return false;
+    if (!checkTrianglePlaneBoxIntersection(v0, v1, v2, boxHalfSize)) {
+        return false;
+    }
 
     return true;
 }
@@ -340,6 +371,28 @@ RayHit OctreeRayTracer::traverseOctree(const Ray& ray) {
     return result;
 }
 
+void OctreeRayTracer::testLeafNodeTriangles(
+    const Ray& ray, const OctreeNode* node, RayHit& result) {
+
+    // Test all triangles in this leaf node
+    for (unsigned int triIdx : node->triangleIndices) {
+        triangleTests++; // Statistics
+
+        const Triangle& tri = voxelGrid.triangles[triIdx];
+
+        float t, u, v;
+        if (rayTriangleIntersection(ray, tri, t, u, v)) {
+            if (t < result.t) {
+                result.hit = true;
+                result.t = t;
+                result.point = add(ray.origin, multiply(ray.direction, t));
+                result.normal = normalize(tri.normal);
+                result.triangleIdx = triIdx;
+            }
+        }
+    }
+}
+
 /**
  * Recursively traverse octree node
  */
@@ -359,26 +412,10 @@ void OctreeRayTracer::traverseNode(const Ray& ray, const OctreeNode* node, RayHi
 
     if (node->isLeaf) {
         // Leaf node: test all triangles
-        for (unsigned int triIdx : node->triangleIndices) {
-            triangleTests++; // Statistics
-
-            const Triangle& tri = voxelGrid.triangles[triIdx];
-
-            float t, u, v;
-            if (rayTriangleIntersection(ray, tri, t, u, v)) {
-                if (t < result.t) {
-                    result.hit = true;
-                    result.t = t;
-                    result.point = add(ray.origin, multiply(ray.direction, t));
-                    result.normal = normalize(tri.normal);
-                    result.triangleIdx = triIdx;
-                }
-            }
-        }
+        testLeafNodeTriangles(ray, node, result);
     }
     else {
-        // Internal node: recursively visit children
-        // Visit children in front-to-back order for early termination
+        // Internal node: recursively visit children in front-to-back order
         for (int i = 0; i < 8; ++i) {
             if (node->children[i]) {
                 traverseNode(ray, node->children[i].get(), result);

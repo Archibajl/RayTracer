@@ -4,6 +4,8 @@
 #include <vector>
 #include <algorithm>
 #include <cmath>
+#include <fstream>
+#include <string>
 #include "StlMesh.h"
 #include "Voxels.h"
 
@@ -39,8 +41,38 @@ struct VoxelGrid {
         if (voxel.triangle_count == 0) return nullptr;
         return &triangle_indices[voxel.triangle_start_idx];
     }
+
+    // Serialize voxel grid to binary file
+    bool saveToFile(const std::string& filename) const;
+
+    // Deserialize voxel grid from binary file
+    static VoxelGrid loadFromFile(const std::string& filename);
+};
+
+// Helper structures for voxelization
+struct MeshBounds {
+    cg_datastructures::Vec3 minBound;
+    cg_datastructures::Vec3 maxBound;
+};
+
+struct VoxelizationParams {
+    cg_datastructures::Vec3 voxelSize;
+    cg_datastructures::Vec3 minBound;
+    cg_datastructures::Vec3 maxBound;
+    size_t nx, ny, nz;
 };
 
 // Forward declarations for voxelization functions
-VoxelGrid BuildVoxelGridFromStlMesh(StlMeshCuda& mesh, size_t nx, size_t ny, size_t nz);
-VoxelGrid BuildVoxelGridFromStlMeshCuda(const StlMeshCuda& mesh, size_t nx, size_t ny, size_t nz);
+VoxelGrid BuildVoxelGridFromStlMesh(StlMesh& mesh, size_t nx, size_t ny, size_t nz);
+
+// Helper functions for voxelization
+MeshBounds computeMeshBounds(const StlMesh& mesh);
+VoxelizationParams computeVoxelizationParams(const MeshBounds& bounds, size_t nx, size_t ny, size_t nz);
+std::vector<cg_datastructures::Triangle> buildTriangleList(const StlMesh& mesh);
+std::vector<cg_datastructures::VoxelHost> voxelizeTriangles(
+    const std::vector<cg_datastructures::Triangle>& triangles,
+    const VoxelizationParams& params);
+void convertToFlatFormat(
+    const std::vector<cg_datastructures::VoxelHost>& voxels_host,
+    std::vector<cg_datastructures::Voxel>& voxels_out,
+    std::vector<unsigned int>& triangle_indices_out);

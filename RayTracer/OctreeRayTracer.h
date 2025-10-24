@@ -64,15 +64,31 @@ private:
     // Octree building
     void buildOctree();
     void subdivideNode(OctreeNode* node, int depth);
+    void createChildNodes(OctreeNode* node, const cg_datastructures::Vec3& center);
+    void distributeTrianglesToChildren(OctreeNode* node);
     bool triangleIntersectsBox(const cg_datastructures::Triangle& tri,
                                const cg_datastructures::Vec3& boxMin,
                                const cg_datastructures::Vec3& boxMax);
+    bool checkTriangleBoxAABBOverlap(const cg_datastructures::Vec3& v0,
+                                     const cg_datastructures::Vec3& v1,
+                                     const cg_datastructures::Vec3& v2,
+                                     const cg_datastructures::Vec3& boxHalfSize) const;
+    bool checkTrianglePlaneBoxIntersection(const cg_datastructures::Vec3& v0,
+                                           const cg_datastructures::Vec3& v1,
+                                           const cg_datastructures::Vec3& v2,
+                                           const cg_datastructures::Vec3& boxHalfSize) const;
 
     // Octree traversal
     cg_datastructures::RayHit traverseOctree(const cg_datastructures::Ray& ray);
     void traverseNode(const cg_datastructures::Ray& ray,
                      const OctreeNode* node,
                      cg_datastructures::RayHit& result);
+    void testLeafNodeTriangles(const cg_datastructures::Ray& ray,
+                               const OctreeNode* node,
+                               cg_datastructures::RayHit& result);
+
+    // Rendering helper methods
+    cg_datastructures::Vec3 computeShading(const cg_datastructures::RayHit& hit, float v) const;
 
     // Helper functions
     cg_datastructures::Ray generateRay(const cg_datastructures::Camera& camera, float u, float v);

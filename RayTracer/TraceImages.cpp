@@ -123,157 +123,8 @@ VoxelGrid TraceImages::generateVoxelGridFromFile(const std::string filepath, int
 	stl_reader::StlMesh<float, unsigned int> stlMesh(filepath);
 	LOG_INFO("Loaded mesh with {} triangles", stlMesh.num_tris());
 
-	// Convert stl_reader::StlMesh to our format for voxelization
-	// Step 1: Compute mesh AABB (bounding box)
-	LOG_INFO("Computing mesh bounding box...");
-	Vec3 minBound = {
-		std::numeric_limits<float>::max(),
-		std::numeric_limits<float>::max(),
-		std::numeric_limits<float>::max()
-	};
-	Vec3 maxBound = {
-		std::numeric_limits<float>::lowest(),
-		std::numeric_limits<float>::lowest(),
-		std::numeric_limits<float>::lowest()
-	};
-
-	for (size_t i = 0; i < stlMesh.num_vrts(); ++i) {
-		const float* coords = stlMesh.vrt_coords(i);
-		minBound.x = std::min(minBound.x, coords[0]);
-		minBound.y = std::min(minBound.y, coords[1]);
-		minBound.z = std::min(minBound.z, coords[2]);
-		maxBound.x = std::max(maxBound.x, coords[0]);
-		maxBound.y = std::max(maxBound.y, coords[1]);
-		maxBound.z = std::max(maxBound.z, coords[2]);
-	}
-
-	LOG_INFO("Bounding box: Min({}, {}, {}) Max({}, {}, {})",
-		minBound.x, minBound.y, minBound.z,
-		maxBound.x, maxBound.y, maxBound.z);
-
-	// Step 2: Compute voxel grid parameters with equal-sized voxels
-	Vec3 gridSize = {
-		maxBound.x - minBound.x,
-		maxBound.y - minBound.y,
-		maxBound.z - minBound.z
-	};
-
-	float maxDimension = std::max(std::max(gridSize.x, gridSize.y), gridSize.z);
-	float maxResolution = static_cast<float>(std::max(std::max(nx, ny), nz));
-	float uniformVoxelSize = maxDimension / maxResolution;
-
-	Vec3 voxelSize = {
-		uniformVoxelSize,
-		uniformVoxelSize,
-		uniformVoxelSize
-	};
-
-	LOG_INFO("Uniform voxel size: {}", uniformVoxelSize);
-	LOG_INFO("Grid dimensions: ({}, {}, {})", gridSize.x, gridSize.y, gridSize.z);
-
-	// Step 3: Build triangle list
-	LOG_INFO("Building triangle list from {} triangles...", stlMesh.num_tris());
-	std::vector<Triangle> triangles;
-	triangles.reserve(stlMesh.num_tris());
-
-	for (size_t t = 0; t < stlMesh.num_tris(); ++t) {
-		const unsigned int* indices = stlMesh.tri_corner_inds(t);
-
-		const float* v0_coords = stlMesh.vrt_coords(indices[0]);
-		const float* v1_coords = stlMesh.vrt_coords(indices[1]);
-		const float* v2_coords = stlMesh.vrt_coords(indices[2]);
-
-		Vec3 v0 = { v0_coords[0], v0_coords[1], v0_coords[2] };
-		Vec3 v1 = { v1_coords[0], v1_coords[1], v1_coords[2] };
-		Vec3 v2 = { v2_coords[0], v2_coords[1], v2_coords[2] };
-
-		const float* nrm = stlMesh.tri_normal(t);
-		Vec3 normal = { nrm[0], nrm[1], nrm[2] };
-
-		triangles.emplace_back(Triangle{ v0, v1, v2, normal });
-	}
-
-	// Step 4: Build voxel grid directly (similar to BuildVoxelGridFromStlMesh)
-	LOG_INFO("Allocating voxel grid: {}x{}x{} = {} voxels", nx, ny, nz, nx * ny * nz);
-	std::vector<VoxelHost> voxels_host(nx * ny * nz);
-
-	auto voxelIndex = [nx, ny](size_t ix, size_t iy, size_t iz) -> size_t {
-		return ix + nx * (iy + ny * iz);
-	};
-
-	// Voxelize triangles
-	LOG_INFO("Voxelizing {} triangles...", triangles.size());
-	for (size_t t = 0; t < triangles.size(); ++t) {
-		const Triangle& tri = triangles[t];
-
-		// Triangle AABB
-		Vec3 triMin = {
-			std::min(std::min(tri.v0.x, tri.v1.x), tri.v2.x),
-			std::min(std::min(tri.v0.y, tri.v1.y), tri.v2.y),
-			std::min(std::min(tri.v0.z, tri.v1.z), tri.v2.z)
-		};
-		Vec3 triMax = {
-			std::max(std::max(tri.v0.x, tri.v1.x), tri.v2.x),
-			std::max(std::max(tri.v0.y, tri.v1.y), tri.v2.y),
-			std::max(std::max(tri.v0.z, tri.v1.z), tri.v2.z)
-		};
-
-		// Determine which voxels this triangle overlaps
-		size_t ix0 = std::clamp(static_cast<size_t>((triMin.x - minBound.x) / voxelSize.x), size_t(0), size_t(nx - 1));
-		size_t iy0 = std::clamp(static_cast<size_t>((triMin.y - minBound.y) / voxelSize.y), size_t(0), size_t(ny - 1));
-		size_t iz0 = std::clamp(static_cast<size_t>((triMin.z - minBound.z) / voxelSize.z), size_t(0), size_t(nz - 1));
-		size_t ix1 = std::clamp(static_cast<size_t>((triMax.x - minBound.x) / voxelSize.x), size_t(0), size_t(nx - 1));
-		size_t iy1 = std::clamp(static_cast<size_t>((triMax.y - minBound.y) / voxelSize.y), size_t(0), size_t(ny - 1));
-		size_t iz1 = std::clamp(static_cast<size_t>((triMax.z - minBound.z) / voxelSize.z), size_t(0), size_t(nz - 1));
-
-		// Add triangle to overlapping voxels
-		for (size_t iz = iz0; iz <= iz1; ++iz) {
-			for (size_t iy = iy0; iy <= iy1; ++iy) {
-				for (size_t ix = ix0; ix <= ix1; ++ix) {
-					size_t voxIdx = voxelIndex(ix, iy, iz);
-					voxels_host[voxIdx].addTriangleIndex(static_cast<unsigned int>(t));
-					voxels_host[voxIdx].occupied = true;
-				}
-			}
-		}
-	}
-
-	// Step 5: Convert to flat CUDA-compatible format
-	LOG_INFO("Converting to CUDA-compatible format...");
-	std::vector<unsigned int> triangle_indices_flat;
-	std::vector<Voxel> voxels_final(nx * ny * nz);
-
-	for (size_t i = 0; i < voxels_host.size(); ++i) {
-		VoxelHost& vh = voxels_host[i];
-		Voxel& vf = voxels_final[i];
-
-		vf.occupied = vh.occupied;
-		vf.density = vh.density;
-		vf.color = vh.color;
-
-		if (vh.triangle_count > 0) {
-			vf.triangle_start_idx = static_cast<unsigned int>(triangle_indices_flat.size());
-			vf.triangle_count = static_cast<unsigned int>(vh.triangle_count);
-
-			for (size_t j = 0; j < vh.triangle_count; ++j) {
-				triangle_indices_flat.push_back(vh.triangle_indices[j]);
-			}
-		} else {
-			vf.triangle_start_idx = 0;
-			vf.triangle_count = 0;
-		}
-	}
-
-	LOG_INFO("Voxel grid created: {} voxels, {} triangle references",
-		voxels_final.size(), triangle_indices_flat.size());
-
-	return VoxelGrid(
-		std::move(voxels_final),
-		std::move(triangle_indices_flat),
-		nx, ny, nz,
-		minBound, maxBound, voxelSize,
-		std::move(triangles)
-	);
+	// Use the new direct conversion function from SceneCreator
+	return BuildVoxelGridFromStlReaderMesh(stlMesh, nx, ny, nz);
 }
 
 void TraceImages::SaveImage(const std::string& filename,
@@ -335,26 +186,108 @@ VoxelGrid TraceImages::loadOrGenerateVoxelGrid(const std::string& filepath, int 
 		}
 	}
 	else if (extension == ".stl") {
-		// Generate voxel grid from STL file
+		// Generate voxel grid directly from STL file
 		LOG_INFO("Generating voxel grid from STL file: {}", filepath);
-		VoxelGrid grid = generateVoxelGridFromFile(filepath, nx, ny, nz);
-
-		// Optionally save the generated voxel grid for faster loading next time
-		std::string voxgridPath = path.replace_extension(".voxgrid").string();
-		LOG_INFO("Saving voxel grid to: {}", voxgridPath);
-		if (grid.saveToFile(voxgridPath)) {
-			LOG_INFO("Voxel grid cached successfully");
-		}
-		else {
-			LOG_WARN("Failed to cache voxel grid");
-		}
-
-		return grid;
+		return generateVoxelGridFromFile(filepath, nx, ny, nz);
 	}
 	else {
 		LOG_ERROR("Unsupported file format: {}. Expected .stl or .voxgrid", extension);
 		throw std::runtime_error("Unsupported file format: " + extension);
 	}
+}
+
+// ============================================================================
+// VOXELGRID SERIALIZATION
+// ============================================================================
+
+bool VoxelGrid::saveToFile(const std::string& filename) const {
+	LOG_INFO("Saving voxel grid to: {}", filename);
+
+	std::ofstream file(filename, std::ios::binary);
+	if (!file) {
+		LOG_ERROR("Failed to open file for writing: {}", filename);
+		return false;
+	}
+
+	// Write dimensions
+	file.write(reinterpret_cast<const char*>(&nx), sizeof(nx));
+	file.write(reinterpret_cast<const char*>(&ny), sizeof(ny));
+	file.write(reinterpret_cast<const char*>(&nz), sizeof(nz));
+
+	// Write bounds
+	file.write(reinterpret_cast<const char*>(&minBound), sizeof(minBound));
+	file.write(reinterpret_cast<const char*>(&maxBound), sizeof(maxBound));
+	file.write(reinterpret_cast<const char*>(&voxelSize), sizeof(voxelSize));
+
+	// Write voxels
+	size_t voxel_count = voxels.size();
+	file.write(reinterpret_cast<const char*>(&voxel_count), sizeof(voxel_count));
+	file.write(reinterpret_cast<const char*>(voxels.data()), voxel_count * sizeof(cg_datastructures::Voxel));
+
+	// Write triangle indices
+	size_t tri_index_count = triangle_indices.size();
+	file.write(reinterpret_cast<const char*>(&tri_index_count), sizeof(tri_index_count));
+	file.write(reinterpret_cast<const char*>(triangle_indices.data()), tri_index_count * sizeof(unsigned int));
+
+	// Write triangles
+	size_t triangle_count = triangles.size();
+	file.write(reinterpret_cast<const char*>(&triangle_count), sizeof(triangle_count));
+	file.write(reinterpret_cast<const char*>(triangles.data()), triangle_count * sizeof(cg_datastructures::Triangle));
+
+	file.close();
+	LOG_INFO("Voxel grid saved successfully");
+	return true;
+}
+
+VoxelGrid VoxelGrid::loadFromFile(const std::string& filename) {
+	LOG_INFO("Loading voxel grid from: {}", filename);
+
+	std::ifstream file(filename, std::ios::binary);
+	if (!file) {
+		LOG_ERROR("Failed to open file for reading: {}", filename);
+		throw std::runtime_error("Failed to open voxel grid file: " + filename);
+	}
+
+	// Read dimensions
+	size_t nx, ny, nz;
+	file.read(reinterpret_cast<char*>(&nx), sizeof(nx));
+	file.read(reinterpret_cast<char*>(&ny), sizeof(ny));
+	file.read(reinterpret_cast<char*>(&nz), sizeof(nz));
+
+	// Read bounds
+	cg_datastructures::Vec3 minBound, maxBound, voxelSize;
+	file.read(reinterpret_cast<char*>(&minBound), sizeof(minBound));
+	file.read(reinterpret_cast<char*>(&maxBound), sizeof(maxBound));
+	file.read(reinterpret_cast<char*>(&voxelSize), sizeof(voxelSize));
+
+	// Read voxels
+	size_t voxel_count;
+	file.read(reinterpret_cast<char*>(&voxel_count), sizeof(voxel_count));
+	std::vector<cg_datastructures::Voxel> voxels(voxel_count);
+	file.read(reinterpret_cast<char*>(voxels.data()), voxel_count * sizeof(cg_datastructures::Voxel));
+
+	// Read triangle indices
+	size_t tri_index_count;
+	file.read(reinterpret_cast<char*>(&tri_index_count), sizeof(tri_index_count));
+	std::vector<unsigned int> triangle_indices(tri_index_count);
+	file.read(reinterpret_cast<char*>(triangle_indices.data()), tri_index_count * sizeof(unsigned int));
+
+	// Read triangles
+	size_t triangle_count;
+	file.read(reinterpret_cast<char*>(&triangle_count), sizeof(triangle_count));
+	std::vector<cg_datastructures::Triangle> triangles(triangle_count);
+	file.read(reinterpret_cast<char*>(triangles.data()), triangle_count * sizeof(cg_datastructures::Triangle));
+
+	file.close();
+	LOG_INFO("Voxel grid loaded successfully");
+
+	return VoxelGrid{
+		std::move(voxels),
+		std::move(triangle_indices),
+		nx, ny, nz,
+		minBound, maxBound, voxelSize,
+		std::move(triangles)
+	};
 }
 
 // Factory method to create appropriate ray tracer

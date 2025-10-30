@@ -142,17 +142,20 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ImageSaver.h" />
+    <ClInclude Include="InlineVoxelizer.h" />
     <ClInclude Include="IRayTracer.h" />
     <ClInclude Include="Logger.h" />
+    <ClInclude Include="MeshVoxelizer.h" />
     <ClInclude Include="RayTracerCommon.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="SceneCreator.h" />
     <ClInclude Include="STLReader.h" />
-    <ClInclude Include="StlMesh.h" />
     <ClInclude Include="TraceImages.h" />
     <ClInclude Include="VectorMath.h" />
     <ClInclude Include="ARTRayTracer.h" />
     <ClInclude Include="OctreeRayTracer.h" />
+    <ClInclude Include="VoxelGrid.h" />
+    <ClInclude Include="VoxelizationHelpers.h" />
     <ClInclude Include="Voxels.h" />
   </ItemGroup>
   <ItemGroup>

@@ -38,7 +38,7 @@ Ray ARTRayTracer::generateRay(const Camera& camera, float u, float v) {
 Vec3 ARTRayTracer::computeShading(const RayHit& hit, float v) const {
     if (hit.hit) {
         // Simple solid color for hits
-        return { 0.5f, 0.5f, 0.5f }; // White
+        return { 1.0f, 1.0f, 1.0f }; // White
     }
     else {
         // Background gradient
@@ -290,7 +290,7 @@ bool ARTRayTracer::testVoxelTriangles(const Ray& ray, int ix, int iy, int iz, Ra
     for (unsigned int i = 0; i < voxel.triangle_count; ++i) {
         trianglesTests++; // Statistics
 
-        unsigned int triIdx = voxelGrid.triangle_indices[voxel.triangle_start_idx + i];
+        unsigned int triIdx = voxel.triangle_start_idx + i;
         const Triangle& tri = voxelGrid.triangles[triIdx];
 
         float t, u, v;

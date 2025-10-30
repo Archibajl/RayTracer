@@ -39,9 +39,6 @@
     <ClCompile Include="SceneCreator.cpp">
       <Filter>Source Files\DataStructures</Filter>
     </ClCompile>
-    <ClCompile Include="MeshGenerator.cpp">
-      <Filter>Source Files\CUDA</Filter>
-    </ClCompile>
     <ClCompile Include="STLReader.cpp">
       <Filter>Source Files\Reader</Filter>
     </ClCompile>
@@ -61,9 +58,6 @@
   <ItemGroup>
     <ClInclude Include="resource.h">
       <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="MeshGenerator.h">
-      <Filter>Source Files\CUDA</Filter>
     </ClInclude>
     <ClInclude Include="STLReader.h">
       <Filter>Source Files\Reader</Filter>
@@ -98,6 +92,18 @@
     <ClInclude Include="OctreeRayTracer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="VoxelGrid.h">
+      <Filter>Source Files\DataStructures</Filter>
+    </ClInclude>
+    <ClInclude Include="VoxelizationHelpers.h">
+      <Filter>Source Files\DataStructures</Filter>
+    </ClInclude>
+    <ClInclude Include="MeshVoxelizer.h">
+      <Filter>Source Files\DataStructures</Filter>
+    </ClInclude>
+    <ClInclude Include="InlineVoxelizer.h">
+      <Filter>Source Files\DataStructures</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="RayTracer.rc">
@@ -112,8 +118,5 @@
     <None Include="..\..\..\..\OneDrive\Documents\MS-UCCS\CS5800\mesh models\Generic-scans\Airless_2.stl">
       <Filter>Resource Files</Filter>
     </None>
-  </ItemGroup>
-  <ItemGroup>
-    <CudaCompile Include="SceneCreator.cu" />
   </ItemGroup>
 </Project>

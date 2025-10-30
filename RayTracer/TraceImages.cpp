@@ -123,8 +123,8 @@ VoxelGrid TraceImages::generateVoxelGridFromFile(const std::string filepath, int
 	stl_reader::StlMesh<float, unsigned int> stlMesh(filepath);
 	LOG_INFO("Loaded mesh with {} triangles", stlMesh.num_tris());
 
-	// Use the new direct conversion function from SceneCreator
-	return BuildVoxelGridFromStlReaderMesh(stlMesh, nx, ny, nz);
+	// Use the refactored voxelization function from SceneCreator
+	return BuildVoxelGridFromStlMesh(stlMesh, nx, ny, nz);
 }
 
 void TraceImages::SaveImage(const std::string& filename,
@@ -220,17 +220,17 @@ bool VoxelGrid::saveToFile(const std::string& filename) const {
 	file.write(reinterpret_cast<const char*>(&voxelSize), sizeof(voxelSize));
 
 	// Write voxels
-	size_t voxel_count = voxels.size();
+	int voxel_count = voxels.size();
 	file.write(reinterpret_cast<const char*>(&voxel_count), sizeof(voxel_count));
 	file.write(reinterpret_cast<const char*>(voxels.data()), voxel_count * sizeof(cg_datastructures::Voxel));
 
 	// Write triangle indices
-	size_t tri_index_count = triangle_indices.size();
+	/*int tri_index_count = triangle_indices.size();
 	file.write(reinterpret_cast<const char*>(&tri_index_count), sizeof(tri_index_count));
-	file.write(reinterpret_cast<const char*>(triangle_indices.data()), tri_index_count * sizeof(unsigned int));
+	file.write(reinterpret_cast<const char*>(triangle_indices.data()), tri_index_count * sizeof(unsigned int));*/
 
 	// Write triangles
-	size_t triangle_count = triangles.size();
+	int triangle_count = triangles.size();
 	file.write(reinterpret_cast<const char*>(&triangle_count), sizeof(triangle_count));
 	file.write(reinterpret_cast<const char*>(triangles.data()), triangle_count * sizeof(cg_datastructures::Triangle));
 
@@ -249,7 +249,7 @@ VoxelGrid VoxelGrid::loadFromFile(const std::string& filename) {
 	}
 
 	// Read dimensions
-	size_t nx, ny, nz;
+	int nx, ny, nz;
 	file.read(reinterpret_cast<char*>(&nx), sizeof(nx));
 	file.read(reinterpret_cast<char*>(&ny), sizeof(ny));
 	file.read(reinterpret_cast<char*>(&nz), sizeof(nz));
@@ -261,19 +261,19 @@ VoxelGrid VoxelGrid::loadFromFile(const std::string& filename) {
 	file.read(reinterpret_cast<char*>(&voxelSize), sizeof(voxelSize));
 
 	// Read voxels
-	size_t voxel_count;
+	int voxel_count;
 	file.read(reinterpret_cast<char*>(&voxel_count), sizeof(voxel_count));
 	std::vector<cg_datastructures::Voxel> voxels(voxel_count);
 	file.read(reinterpret_cast<char*>(voxels.data()), voxel_count * sizeof(cg_datastructures::Voxel));
 
 	// Read triangle indices
-	size_t tri_index_count;
+	int tri_index_count;
 	file.read(reinterpret_cast<char*>(&tri_index_count), sizeof(tri_index_count));
 	std::vector<unsigned int> triangle_indices(tri_index_count);
 	file.read(reinterpret_cast<char*>(triangle_indices.data()), tri_index_count * sizeof(unsigned int));
 
 	// Read triangles
-	size_t triangle_count;
+	int triangle_count;
 	file.read(reinterpret_cast<char*>(&triangle_count), sizeof(triangle_count));
 	std::vector<cg_datastructures::Triangle> triangles(triangle_count);
 	file.read(reinterpret_cast<char*>(triangles.data()), triangle_count * sizeof(cg_datastructures::Triangle));
@@ -283,7 +283,6 @@ VoxelGrid VoxelGrid::loadFromFile(const std::string& filename) {
 
 	return VoxelGrid{
 		std::move(voxels),
-		std::move(triangle_indices),
 		nx, ny, nz,
 		minBound, maxBound, voxelSize,
 		std::move(triangles)

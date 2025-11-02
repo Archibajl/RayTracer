@@ -10,94 +10,114 @@
 using namespace std;
 using namespace cg_datastructures;
 
-void TraceImages::TraceImage(std::string gridFileLocation, std::string outputFileName, RayTracingMethod method) {
+// ============================================================================
+// LOGGING HELPERS
+// ============================================================================
+
+std::string TraceImages::getRayTracingMethodName(RayTracingMethod method) {
+	switch (method) {
+		case RayTracingMethod::VOXEL_DDA: return "Voxel Grid DDA";
+		case RayTracingMethod::ART: return "ARTS (3DDDA)";
+		case RayTracingMethod::OCTREE: return "Octree";
+		default: return "Unknown";
+	}
+}
+
+void TraceImages::logStartInfo(const std::string& gridFileLocation, const std::string& outputFileName, RayTracingMethod method) {
 	LOG_INFO("========================================");
 	LOG_INFO("Starting image generation");
 	LOG_INFO("Input file: {}", gridFileLocation);
 	LOG_INFO("Output file: {}", outputFileName);
-
-	// Log the ray tracing method
-	std::string methodName;
-	switch (method) {
-		case RayTracingMethod::VOXEL_DDA: methodName = "Voxel Grid DDA"; break;
-		case RayTracingMethod::ART: methodName = "ARTS (3DDDA)"; break;
-		case RayTracingMethod::OCTREE: methodName = "Octree"; break;
-		default: methodName = "Unknown"; break;
-	}
-	LOG_INFO("Ray tracing method: {}", methodName);
+	LOG_INFO("Ray tracing method: {}", getRayTracingMethodName(method));
 	LOG_INFO("========================================");
+}
+
+void TraceImages::logCompletionInfo(double totalTimeSeconds, const std::string& outputFileName) {
+	LOG_INFO("========================================");
+	LOG_INFO("Total time: {:.3f} seconds", totalTimeSeconds);
+	LOG_INFO("Successfully generated image: {}", outputFileName);
+}
+
+void TraceImages::logErrorInfo(const std::string& gridFileLocation, const std::string& errorMessage, double timeSeconds) {
+	LOG_ERROR("========================================");
+	LOG_ERROR("FAILED to generate image for: {}", gridFileLocation);
+	LOG_ERROR("Error: {}", errorMessage);
+	LOG_ERROR("Time before failure: {:.3f} seconds", timeSeconds);
+	LOG_ERROR("========================================");
+}
+
+void TraceImages::renderImageWithTiming(VoxelGrid& voxelGrid, const std::string& outputFileName, RayTracingMethod method) {
+	auto raytraceStart = std::chrono::high_resolution_clock::now();
+	genateImageFromGrid(voxelGrid, outputFileName, method);
+	auto raytraceEnd = std::chrono::high_resolution_clock::now();
+	auto raytraceDuration = std::chrono::duration_cast<std::chrono::milliseconds>(raytraceEnd - raytraceStart);
+	LOG_INFO("Ray tracing time: {:.3f} seconds", raytraceDuration.count() / 1000.0);
+}
+
+// ============================================================================
+// MAIN IMAGE TRACING FUNCTION
+// ============================================================================
+
+void TraceImages::TraceImage(std::string gridFileLocation, std::string outputFileName, RayTracingMethod method) {
+	logStartInfo(gridFileLocation, outputFileName, method);
 
 	// Start total timer
 	auto totalStart = std::chrono::high_resolution_clock::now();
 
 	try {
 		// Build or load voxel grid
-		auto voxelStart = std::chrono::high_resolution_clock::now();
 		VoxelGrid voxelGrid = loadOrGenerateVoxelGrid(gridFileLocation, 50, 50, 50);
-		auto voxelEnd = std::chrono::high_resolution_clock::now();
-		auto voxelDuration = std::chrono::duration_cast<std::chrono::milliseconds>(voxelEnd - voxelStart);
-		LOG_INFO("Voxel grid load/generation time: {:.3f} seconds", voxelDuration.count() / 1000.0);
 
 		// Generate images using specified method
-		auto raytraceStart = std::chrono::high_resolution_clock::now();
-		genateImageFromGrid(voxelGrid, outputFileName, method);
-		auto raytraceEnd = std::chrono::high_resolution_clock::now();
-		auto raytraceDuration = std::chrono::duration_cast<std::chrono::milliseconds>(raytraceEnd - raytraceStart);
-		LOG_INFO("Ray tracing time: {:.3f} seconds", raytraceDuration.count() / 1000.0);
+		renderImageWithTiming(voxelGrid, outputFileName, method);
 
 		auto totalEnd = std::chrono::high_resolution_clock::now();
 		auto totalDuration = std::chrono::duration_cast<std::chrono::milliseconds>(totalEnd - totalStart);
-		LOG_INFO("========================================");
-		LOG_INFO("Total time: {:.3f} seconds", totalDuration.count() / 1000.0);
-		LOG_INFO("Successfully generated image: {}", outputFileName);
+		logCompletionInfo(totalDuration.count() / 1000.0, outputFileName);
 	}
 	catch (const std::exception& e) {
 		auto totalEnd = std::chrono::high_resolution_clock::now();
 		auto totalDuration = std::chrono::duration_cast<std::chrono::milliseconds>(totalEnd - totalStart);
-		LOG_ERROR("========================================");
-		LOG_ERROR("FAILED to generate image for: {}", gridFileLocation);
-		LOG_ERROR("Error: {}", e.what());
-		LOG_ERROR("Time before failure: {:.3f} seconds", totalDuration.count() / 1000.0);
-		LOG_ERROR("========================================");
+		logErrorInfo(gridFileLocation, e.what(), totalDuration.count() / 1000.0);
 		// Don't re-throw, just continue to next image
 	}
 }
 
-void TraceImages::genateImageFromGrid(VoxelGrid voxelGrid, std::string filename, RayTracingMethod method) {
-	// Create ray tracer using factory method
-	std::unique_ptr<IRayTracer> raytracer = createRayTracer(voxelGrid, method);
+// ============================================================================
+// CAMERA SETUP
+// ============================================================================
 
-	// Calculate mesh center and size for camera positioning
-	Vec3 center = {
-		(voxelGrid.minBound.x + voxelGrid.maxBound.x) * 0.5f,
-		(voxelGrid.minBound.y + voxelGrid.maxBound.y) * 0.5f,
-		(voxelGrid.minBound.z + voxelGrid.maxBound.z) * 0.5f
-	};
+Camera TraceImages::setupCamera(const VoxelGrid& voxelGrid) {
+	// Use pre-computed center
+	Vec3 center = voxelGrid.center;
 
+	// Compute grid size
 	Vec3 size = {
 		voxelGrid.maxBound.x - voxelGrid.minBound.x,
 		voxelGrid.maxBound.y - voxelGrid.minBound.y,
 		voxelGrid.maxBound.z - voxelGrid.minBound.z
 	};
 
+	// Compute camera distance
 	float maxSize = std::max(std::max(size.x, size.y), size.z);
-	float cameraDistance = maxSize * 2.5f; // Position camera 2.5x the max dimension away
+	float cameraDistance = maxSize * 2.5f;
 
+	// Log camera setup
 	LOG_INFO("Mesh center: ({}, {}, {})", center.x, center.y, center.z);
 	LOG_INFO("Mesh size: ({}, {}, {})", size.x, size.y, size.z);
 	LOG_INFO("Camera distance: {}", cameraDistance);
 
 	// Setup camera positioned to view the entire mesh
-	Camera camera(
+	return Camera(
 		{ center.x, center.y, center.z - cameraDistance },  // Position (back from center)
 		{ center.x, center.y, center.z },                    // Look at center
 		{ 0.0f, 1.0f, 0.0f },                                // Up vector
 		60.0f,                                                // FOV
 		800.0f / 600.0f                                       // Aspect ratio
 	);
+}
 
-	// Render image
-	int width = 800, height = 600;
+std::vector<Vec3> TraceImages::renderWithTiming(IRayTracer* raytracer, const Camera& camera, int width, int height) {
 	LOG_INFO("Rendering {}x{} image...", width, height);
 
 	auto renderStart = std::chrono::high_resolution_clock::now();
@@ -109,23 +129,53 @@ void TraceImages::genateImageFromGrid(VoxelGrid voxelGrid, std::string filename,
 	LOG_INFO("Image rendered with {} pixels in {:.3f} seconds", pixels.size(), renderDuration.count() / 1000.0);
 	LOG_INFO("Render performance: {:.2f} rays/sec", (width * height) / (renderDuration.count() / 1000.0));
 
-	// Output image
-	auto saveStart = std::chrono::high_resolution_clock::now();
-	SaveImage("C:\\Users\\j`\\OneDrive\\Documents\\MS-UCCS\\CS5800\\mesh models\\GeneratedFiles\\" + filename, pixels, width, height);
-	auto saveEnd = std::chrono::high_resolution_clock::now();
-	auto saveDuration = std::chrono::duration_cast<std::chrono::milliseconds>(saveEnd - saveStart);
-	LOG_INFO("Image save time: {:.3f} seconds", saveDuration.count() / 1000.0);
+	return pixels;
 }
 
-VoxelGrid TraceImages::generateVoxelGridFromFile(const std::string filepath, int nx, int ny, int nz) {
-	// Load mesh from STL file using stl_reader
+// ============================================================================
+// IMAGE GENERATION FROM VOXEL GRID
+// ============================================================================
+
+void TraceImages::genateImageFromGrid(VoxelGrid voxelGrid, std::string filename, RayTracingMethod method) {
+	// Create ray tracer using factory method
+	std::unique_ptr<IRayTracer> raytracer = createRayTracer(voxelGrid, method);
+
+	// Setup camera
+	Camera camera = setupCamera(voxelGrid);
+
+	// Render image
+	int width = 800, height = 600;
+	auto pixels = renderWithTiming(raytracer.get(), camera, width, height);
+
+	// Output image
+	std::string filepath = "C:\\Users\\j`\\OneDrive\\Documents\\MS-UCCS\\CS5800\\mesh models\\GeneratedFiles\\" + filename;
+	SaveImage(filepath, pixels, width, height);
+}
+
+// ============================================================================
+// STL MESH LOADING
+// ============================================================================
+
+stl_reader::StlMesh<float, unsigned int> TraceImages::loadStlMesh(const std::string& filepath) {
 	LOG_INFO("Loading STL file: {}", filepath);
 	stl_reader::StlMesh<float, unsigned int> stlMesh(filepath);
 	LOG_INFO("Loaded mesh with {} triangles", stlMesh.num_tris());
+	return stlMesh;
+}
 
+// ============================================================================
+// VOXEL GRID GENERATION
+// ============================================================================
+
+VoxelGrid TraceImages::generateVoxelGridFromStlMesh(const stl_reader::StlMesh<float, unsigned int>& stlMesh, int nx, int ny, int nz) {
+	LOG_INFO("Generating voxel grid with dimensions {}x{}x{}", nx, ny, nz);
 	// Use the refactored voxelization function from SceneCreator
 	return BuildVoxelGridFromStlMesh(stlMesh, nx, ny, nz);
 }
+
+// ============================================================================
+// IMAGE SAVING
+// ============================================================================
 
 void TraceImages::SaveImage(const std::string& filename,
 	const std::vector<cg_datastructures::Vec3>& pixels,
@@ -164,6 +214,10 @@ void TraceImages::SaveImage(const std::string& filename,
 		}
 	}
 
+// ============================================================================
+// VOXEL GRID LOADING/GENERATION
+// ============================================================================
+
 VoxelGrid TraceImages::loadOrGenerateVoxelGrid(const std::string& filepath, int nx, int ny, int nz) {
 	// Check if filepath is a .voxgrid file (pre-saved voxel grid)
 	std::filesystem::path path(filepath);
@@ -186,9 +240,10 @@ VoxelGrid TraceImages::loadOrGenerateVoxelGrid(const std::string& filepath, int 
 		}
 	}
 	else if (extension == ".stl") {
-		// Generate voxel grid directly from STL file
-		LOG_INFO("Generating voxel grid from STL file: {}", filepath);
-		return generateVoxelGridFromFile(filepath, nx, ny, nz);
+		// Load STL mesh and generate voxel grid separately
+		LOG_INFO("Processing STL file: {}", filepath);
+		stl_reader::StlMesh<float, unsigned int> stlMesh = loadStlMesh(filepath);
+		return generateVoxelGridFromStlMesh(stlMesh, nx, ny, nz);
 	}
 	else {
 		LOG_ERROR("Unsupported file format: {}. Expected .stl or .voxgrid", extension);
@@ -197,7 +252,7 @@ VoxelGrid TraceImages::loadOrGenerateVoxelGrid(const std::string& filepath, int 
 }
 
 // ============================================================================
-// VOXELGRID SERIALIZATION
+// VOXEL GRID SERIALIZATION
 // ============================================================================
 
 bool VoxelGrid::saveToFile(const std::string& filename) const {
@@ -218,11 +273,16 @@ bool VoxelGrid::saveToFile(const std::string& filename) const {
 	file.write(reinterpret_cast<const char*>(&minBound), sizeof(minBound));
 	file.write(reinterpret_cast<const char*>(&maxBound), sizeof(maxBound));
 	file.write(reinterpret_cast<const char*>(&voxelSize), sizeof(voxelSize));
+	file.write(reinterpret_cast<const char*>(&center), sizeof(center));
 
-	// Write voxels
-	int voxel_count = voxels.size();
-	file.write(reinterpret_cast<const char*>(&voxel_count), sizeof(voxel_count));
-	file.write(reinterpret_cast<const char*>(voxels.data()), voxel_count * sizeof(cg_datastructures::Voxel));
+	// Write voxels as 3D array
+	for (int x = 0; x < nx; ++x) {
+		for (int y = 0; y < ny; ++y) {
+			for (int z = 0; z < nz; ++z) {
+				file.write(reinterpret_cast<const char*>(&voxels[x][y][z]), sizeof(cg_datastructures::Voxel));
+			}
+		}
+	}
 
 	// Write triangle indices
 	/*int tri_index_count = triangle_indices.size();
@@ -245,7 +305,7 @@ VoxelGrid VoxelGrid::loadFromFile(const std::string& filename) {
 	std::ifstream file(filename, std::ios::binary);
 	if (!file) {
 		LOG_ERROR("Failed to open file for reading: {}", filename);
-		throw std::runtime_error("Failed to open voxel grid file: " + filename);
+		throw std::runtime_error("Failed to open file: " + filename);
 	}
 
 	// Read dimensions
@@ -255,22 +315,23 @@ VoxelGrid VoxelGrid::loadFromFile(const std::string& filename) {
 	file.read(reinterpret_cast<char*>(&nz), sizeof(nz));
 
 	// Read bounds
-	cg_datastructures::Vec3 minBound, maxBound, voxelSize;
+	cg_datastructures::Vec3 minBound, maxBound, voxelSize, center;
 	file.read(reinterpret_cast<char*>(&minBound), sizeof(minBound));
 	file.read(reinterpret_cast<char*>(&maxBound), sizeof(maxBound));
 	file.read(reinterpret_cast<char*>(&voxelSize), sizeof(voxelSize));
+	file.read(reinterpret_cast<char*>(&center), sizeof(center));
 
-	// Read voxels
-	int voxel_count;
-	file.read(reinterpret_cast<char*>(&voxel_count), sizeof(voxel_count));
-	std::vector<cg_datastructures::Voxel> voxels(voxel_count);
-	file.read(reinterpret_cast<char*>(voxels.data()), voxel_count * sizeof(cg_datastructures::Voxel));
-
-	// Read triangle indices
-	int tri_index_count;
-	file.read(reinterpret_cast<char*>(&tri_index_count), sizeof(tri_index_count));
-	std::vector<unsigned int> triangle_indices(tri_index_count);
-	file.read(reinterpret_cast<char*>(triangle_indices.data()), tri_index_count * sizeof(unsigned int));
+	// Read voxels as 3D array
+	std::vector<std::vector<std::vector<cg_datastructures::Voxel>>> voxels(nx);
+	for (int x = 0; x < nx; ++x) {
+		voxels[x].resize(ny);
+		for (int y = 0; y < ny; ++y) {
+			voxels[x][y].resize(nz);
+			for (int z = 0; z < nz; ++z) {
+				file.read(reinterpret_cast<char*>(&voxels[x][y][z]), sizeof(cg_datastructures::Voxel));
+			}
+		}
+	}
 
 	// Read triangles
 	int triangle_count;
@@ -279,15 +340,23 @@ VoxelGrid VoxelGrid::loadFromFile(const std::string& filename) {
 	file.read(reinterpret_cast<char*>(triangles.data()), triangle_count * sizeof(cg_datastructures::Triangle));
 
 	file.close();
-	LOG_INFO("Voxel grid loaded successfully");
+	LOG_INFO("Voxel grid loaded successfully: {}x{}x{} voxels, {} triangles", nx, ny, nz, triangle_count);
 
-	return VoxelGrid{
+	// Note: triangle_indices is not saved/loaded, so we create an empty vector
+	std::vector<unsigned int> triangle_indices;
+
+	return VoxelGrid(
 		std::move(voxels),
+		std::move(triangle_indices),
 		nx, ny, nz,
 		minBound, maxBound, voxelSize,
 		std::move(triangles)
-	};
+	);
 }
+
+// ============================================================================
+// RAY TRACER FACTORY
+// ============================================================================
 
 // Factory method to create appropriate ray tracer
 std::unique_ptr<IRayTracer> TraceImages::createRayTracer(VoxelGrid& voxelGrid, RayTracingMethod method) {

@@ -1,10 +1,12 @@
 #include "MeshVoxelizer.h"
 #include "VoxelizationHelpers.h"
+#include "GeometryUtils.h"
 #include "Logger.h"
 #include <limits>
+#include <string>
 
 // ============================================================================
-// HELPER FUNCTIONS
+// INLINE HELPER FUNCTIONS
 // ============================================================================
 
 // Helper function to compute the min of three floats
@@ -40,7 +42,7 @@ inline int voxelIndex(int ix, int iy, int iz, int nx, int ny) {
 }
 
 // ============================================================================
-// VOXELIZATION SUBFUNCTIONS
+// MESH BOUNDS COMPUTATION
 // ============================================================================
 
 // Compute the axis-aligned bounding box (AABB) of the mesh
@@ -81,6 +83,10 @@ MeshBounds computeMeshBounds(const stl_reader::StlMesh<TNumber, TIndex>& mesh) {
     return bounds;
 }
 
+// ============================================================================
+// VOXELIZATION PARAMETERS COMPUTATION
+// ============================================================================
+
 // Calculate voxelization parameters (uniform voxel size)
 VoxelizationParams computeVoxelizationParams(const MeshBounds& bounds, int nx, int ny, int nz) {
     VoxelizationParams params;
@@ -114,6 +120,10 @@ VoxelizationParams computeVoxelizationParams(const MeshBounds& bounds, int nx, i
 
     return params;
 }
+
+// ============================================================================
+// TRIANGLE LIST BUILDING
+// ============================================================================
 
 // Build a list of triangles from the mesh
 template <typename TNumber, typename TIndex>
@@ -159,98 +169,140 @@ std::vector<cg_datastructures::Triangle> buildTriangleList(const stl_reader::Stl
     return triangles;
 }
 
-// Voxelize triangles into a temporary host voxel grid
-std::vector<cg_datastructures::VoxelHost> voxelizeTriangles(
+// ============================================================================
+// TRIANGLE VOXELIZATION - HELPER FUNCTIONS
+// ============================================================================
+
+// Convert triangle AABB to voxel index range
+void triangleAABBToVoxelRange(
+    const cg_datastructures::Vec3& triMin,
+    const cg_datastructures::Vec3& triMax,
+    const VoxelizationParams& params,
+    int& ix0, int& iy0, int& iz0,
+    int& ix1, int& iy1, int& iz1)
+{
+    worldToVoxelIndex(triMin, params.minBound, params.voxelSize,
+        params.nx, params.ny, params.nz, ix0, iy0, iz0);
+    worldToVoxelIndex(triMax, params.minBound, params.voxelSize,
+        params.nx, params.ny, params.nz, ix1, iy1, iz1);
+}
+
+// ============================================================================
+// TRIANGLE VOXELIZATION - MAIN FUNCTION (TWO-PASS APPROACH)
+// ============================================================================
+
+// Two-pass voxelization that directly produces flat CUDA-compatible format
+// Pass 1: Build lists of triangle indices for each voxel
+// Pass 2: Flatten into CUDA-compatible arrays (voxels + triangle_indices)
+VoxelizationResult voxelizeTrianglesDirect(
     const std::vector<cg_datastructures::Triangle>& triangles,
     const VoxelizationParams& params)
 {
     LOG_INFO("Allocating voxel grid: {}x{}x{} = {} voxels",
         params.nx, params.ny, params.nz, params.nx * params.ny * params.nz);
 
-    std::vector<cg_datastructures::VoxelHost> voxels_host(params.nx * params.ny * params.nz);
+    const int total_voxels = params.nx * params.ny * params.nz;
 
-    LOG_INFO("Voxelizing triangles...");
-    int occupied_count = 0;
+    // Temporary storage: list of triangle indices for each voxel
+    std::vector<std::vector<unsigned int>> voxel_triangle_lists(total_voxels);
 
+    LOG_INFO("Pass 1: Assigning triangles to voxels...");
+
+    // Pass 1: Build lists of triangle indices for each voxel
     for (int t = 0; t < triangles.size(); ++t) {
-        const cg_datastructures::Vec3& v0 = triangles[t].v0;
-        const cg_datastructures::Vec3& v1 = triangles[t].v1;
-        const cg_datastructures::Vec3& v2 = triangles[t].v2;
-
-        // Compute triangle AABB
-        cg_datastructures::Vec3 triMin = {
-            min3(v0.x, v1.x, v2.x),
-            min3(v0.y, v1.y, v2.y),
-            min3(v0.z, v1.z, v2.z)
-        };
-        cg_datastructures::Vec3 triMax = {
-            max3(v0.x, v1.x, v2.x),
-            max3(v0.y, v1.y, v2.y),
-            max3(v0.z, v1.z, v2.z)
-        };
+        // Compute triangle AABB using GeometryUtils
+        cg_datastructures::Vec3 triMin, triMax;
+        GeometryUtils::computeTriangleMinMax(triangles[t], triMin, triMax);
 
         // Convert triangle AABB to voxel index range
         int ix0, iy0, iz0, ix1, iy1, iz1;
-        worldToVoxelIndex(triMin, params.minBound, params.voxelSize,
-            params.nx, params.ny, params.nz, ix0, iy0, iz0);
-        worldToVoxelIndex(triMax, params.minBound, params.voxelSize,
-            params.nx, params.ny, params.nz, ix1, iy1, iz1);
+        triangleAABBToVoxelRange(triMin, triMax, params, ix0, iy0, iz0, ix1, iy1, iz1);
 
         // Assign triangle index to all voxels in its AABB
         for (int ix = ix0; ix <= ix1; ++ix) {
             for (int iy = iy0; iy <= iy1; ++iy) {
                 for (int iz = iz0; iz <= iz1; ++iz) {
-                    int idx = voxelIndex(ix, iy, iz, params.nx, params.ny);
-
-                    // Mark voxel as occupied and add triangle index
-                    if (!voxels_host[idx].occupied) {
-                        voxels_host[idx].occupied = true;
-                        occupied_count++;
-                    }
-                    voxels_host[idx].addTriangleIndex(static_cast<unsigned int>(t));
+                    int voxel_idx = voxelIndex(ix, iy, iz, params.nx, params.ny);
+                    voxel_triangle_lists[voxel_idx].push_back(static_cast<unsigned int>(t));
                 }
             }
         }
     }
 
-    LOG_INFO("Voxelization complete: {} voxels occupied out of {} total voxels",
-        occupied_count, params.nx * params.ny * params.nz);
+    LOG_INFO("Pass 2: Building 3D voxel array...");
 
-    return voxels_host;
+    // Pass 2: Build 3D voxel array and flat triangle index array
+    VoxelizationResult result;
+
+    // Initialize 3D array: voxels[x][y][z]
+    result.voxels.resize(params.nx);
+    for (int x = 0; x < params.nx; ++x) {
+        result.voxels[x].resize(params.ny);
+        for (int y = 0; y < params.ny; ++y) {
+            result.voxels[x][y].resize(params.nz);
+        }
+    }
+
+    result.occupied_count = 0;
+    unsigned int current_start_idx = 0;
+
+    // Convert 1D temporary data to 3D array
+    for (int iz = 0; iz < params.nz; ++iz) {
+        for (int iy = 0; iy < params.ny; ++iy) {
+            for (int ix = 0; ix < params.nx; ++ix) {
+                int flat_idx = ix + params.nx * (iy + params.ny * iz);
+                const auto& tri_list = voxel_triangle_lists[flat_idx];
+
+                auto& voxel = result.voxels[ix][iy][iz];
+                voxel.occupied = !tri_list.empty();
+                voxel.triangle_start_idx = current_start_idx;
+                voxel.triangle_count = static_cast<unsigned int>(tri_list.size());
+                voxel.density = 0.0f;
+                voxel.color = { 0.0f, 0.0f, 0.0f };
+
+                if (voxel.occupied) {
+                    result.occupied_count++;
+                }
+
+                // Append this voxel's triangle indices to the flat array
+                for (unsigned int tri_idx : tri_list) {
+                    result.triangle_indices.push_back(tri_idx);
+                }
+
+                current_start_idx += static_cast<unsigned int>(tri_list.size());
+            }
+        }
+    }
+
+    LOG_INFO("Voxelization complete: {} occupied / {} total voxels, {} triangle references",
+        result.occupied_count, total_voxels, result.triangle_indices.size());
+
+    return result;
 }
 
-// Convert host voxel format to CUDA-compatible flat format
-//void convertToFlatFormat(
-//    const std::vector<cg_datastructures::VoxelHost>&    ,
-//    std::vector<cg_datastructures::Voxel>& voxels_out,
-//    std::vector<unsigned int>& triangle_indices_out)
-//{
-//    LOG_INFO("Converting to CUDA-compatible format...");
-//
-//    voxels_out.resize(voxels_host.size());
-//    triangle_indices_out.clear();
-//
-//    unsigned int current_start_idx = 0;
-//    for (int i = 0; i < voxels_host.size(); ++i) {
-//        voxels_out[i].occupied = voxels_host[i].occupied;
-//        voxels_out[i].density = voxels_host[i].density;
-//        voxels_out[i].color = voxels_host[i].color;
-//        voxels_out[i].triangle_start_idx = current_start_idx;
-//        voxels_out[i].triangle_count = static_cast<unsigned int>(voxels_host[i].triangle_count);
-//
-//        // Append triangle indices to the flat array
-//        for (int j = 0; j < voxels_host[i].triangle_count; ++j) {
-//            triangle_indices_out.push_back(voxels_host[i].triangle_indices[j]);
-//        }
-//
-//        current_start_idx += static_cast<unsigned int>(voxels_host[i].triangle_count);
-//    }
-//
-//    LOG_INFO("Total triangle references: {}", triangle_indices_out.size());
-//}
 
 // ============================================================================
-// MAIN VOXELIZATION FUNCTION
+// VOXEL GRID CREATION
+// ============================================================================
+
+// Create VoxelGrid from voxels and parameters
+VoxelGrid createVoxelGrid(
+    std::vector<std::vector<std::vector<cg_datastructures::Voxel>>>&& voxels,
+    std::vector<unsigned int>&& triangle_indices,
+    const VoxelizationParams& params,
+    std::vector<cg_datastructures::Triangle>&& triangles)
+{
+    return VoxelGrid{
+        std::move(voxels),
+        std::move(triangle_indices),
+        params.nx, params.ny, params.nz,
+        params.minBound, params.maxBound, params.voxelSize,
+        std::move(triangles)
+    };
+}
+
+// ============================================================================
+// MAIN VOXEL GRID BUILDING FUNCTION
 // ============================================================================
 
 template <typename TNumber, typename TIndex>
@@ -264,27 +316,21 @@ VoxelGrid BuildVoxelGridFromStlMesh(const stl_reader::StlMesh<TNumber, TIndex>& 
     // Step 3: Build triangle list
     std::vector<cg_datastructures::Triangle> triangles = buildTriangleList(mesh);
 
-    // Step 4: Voxelize triangles
-    std::vector<cg_datastructures::VoxelHost> voxels_host = voxelizeTriangles(triangles, params);
+    // Step 4: Voxelize triangles directly to flat format (no VoxelHost)
+    VoxelizationResult voxel_result = voxelizeTrianglesDirect(triangles, params);
 
-    // Step 5: Convert to CUDA-compatible format
-    std::vector<cg_datastructures::Voxel> voxels(voxels_host.size());
-    for (size_t i = 0; i < voxels_host.size(); ++i) {
-        voxels[i].occupied = voxels_host[i].occupied;
-        voxels[i].density = voxels_host[i].density;
-        voxels[i].color = voxels_host[i].color;
-        voxels[i].triangle_start_idx = voxels_host[i].triangle_indices ? voxels_host[i].triangle_indices[0] : 0;
-        voxels[i].triangle_count = static_cast<unsigned int>(voxels_host[i].triangle_count);
-    }
-
-    // Step 6: Return the complete voxel grid
-    return VoxelGrid{
-        std::move(voxels),
-        params.nx, params.ny, params.nz,
-        params.minBound, params.maxBound, params.voxelSize,
+    // Step 5: Return the complete voxel grid with flat triangle index array
+    return createVoxelGrid(
+        std::move(voxel_result.voxels),
+        std::move(voxel_result.triangle_indices),
+        params,
         std::move(triangles)
-    };
+    );
 }
+
+// ============================================================================
+// TEMPLATE INSTANTIATIONS
+// ============================================================================
 
 // Explicit template instantiations for common types
 template MeshBounds computeMeshBounds<float, unsigned int>(

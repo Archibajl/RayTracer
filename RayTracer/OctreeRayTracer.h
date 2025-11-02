@@ -78,6 +78,15 @@ private:
                                            const cg_datastructures::Vec3& v2,
                                            const cg_datastructures::Vec3& boxHalfSize) const;
 
+    // Octree subdivision helpers
+    bool shouldSubdivideNode(const OctreeNode* node, int depth) const;
+    cg_datastructures::Vec3 computeNodeCenter(const OctreeNode* node) const;
+    void subdivideChildrenRecursively(OctreeNode* node, int depth);
+    cg_datastructures::Vec3 computeBoxCenter(const cg_datastructures::Vec3& boxMin,
+                                             const cg_datastructures::Vec3& boxMax) const;
+    cg_datastructures::Vec3 computeBoxHalfSize(const cg_datastructures::Vec3& boxMin,
+                                               const cg_datastructures::Vec3& boxMax) const;
+
     // Octree traversal
     cg_datastructures::RayHit traverseOctree(const cg_datastructures::Ray& ray);
     void traverseNode(const cg_datastructures::Ray& ray,
@@ -89,6 +98,11 @@ private:
 
     // Rendering helper methods
     cg_datastructures::Vec3 computeShading(const cg_datastructures::RayHit& hit, float v) const;
+    cg_datastructures::Vec3 renderPixel(const cg_datastructures::Camera& camera,
+                                       int x, int y, int width, int height);
+    void resetRenderingStatistics();
+    void logProgressUpdate(int currentRow, int totalRows) const;
+    void logRenderingStatistics(int hitCount, int totalRays) const;
 
     // Helper functions
     cg_datastructures::Ray generateRay(const cg_datastructures::Camera& camera, float u, float v);

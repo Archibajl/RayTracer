@@ -54,6 +54,9 @@
     <ClCompile Include="OctreeRayTracer.cpp">
       <Filter>Source Files\CPURayTracers</Filter>
     </ClCompile>
+    <ClCompile Include="GeometryUtils.cpp">
+      <Filter>Source Files\Utils</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="resource.h">
@@ -103,6 +106,9 @@
     </ClInclude>
     <ClInclude Include="InlineVoxelizer.h">
       <Filter>Source Files\DataStructures</Filter>
+    </ClInclude>
+    <ClInclude Include="GeometryUtils.h">
+      <Filter>Source Files\Utils</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

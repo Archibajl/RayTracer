@@ -6,4 +6,3 @@
 #include "VoxelGrid.h"
 #include "VoxelizationHelpers.h"
 #include "MeshVoxelizer.h"
-#include "InlineVoxelizer.h"

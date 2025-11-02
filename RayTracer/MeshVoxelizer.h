@@ -34,13 +34,14 @@ VoxelizationParams computeVoxelizationParams(const MeshBounds& bounds, int nx, i
 template <typename TNumber, typename TIndex>
 std::vector<cg_datastructures::Triangle> buildTriangleList(const stl_reader::StlMesh<TNumber, TIndex>& mesh);
 
-// Voxelize triangles into a grid
-std::vector<cg_datastructures::VoxelHost> voxelizeTriangles(
+// Result structure for direct voxelization
+struct VoxelizationResult {
+    std::vector<std::vector<std::vector<cg_datastructures::Voxel>>> voxels;  // 3D array: voxels[x][y][z]
+    std::vector<unsigned int> triangle_indices;
+    int occupied_count;
+};
+
+// Voxelize triangles directly to flat CUDA-compatible format
+VoxelizationResult voxelizeTrianglesDirect(
     const std::vector<cg_datastructures::Triangle>& triangles,
     const VoxelizationParams& params);
-
-// Convert voxel host format to flat CUDA-compatible format
-void convertToFlatFormat(
-    const std::vector<cg_datastructures::VoxelHost>& voxels_host,
-    std::vector<cg_datastructures::Voxel>& voxels_out,
-    std::vector<unsigned int>& triangle_indices_out);

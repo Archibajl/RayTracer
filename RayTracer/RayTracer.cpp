@@ -18,15 +18,15 @@ int main() {
 	try {
 		TraceImages tracer = TraceImages();
 
-		// Process multiple STL files
+		// Process multiple STL files using OCTREE method (much faster!)
 		//Resistor Model
-		tracer.TraceImage("C:\\Users\\j`\\OneDrive\\Documents\\MS-UCCS\\CS5800\\mesh models\\Generic-scans\\Resistor.stl", "resistor.png");
+		tracer.TraceImage("C:\\Users\\j`\\OneDrive\\Documents\\MS-UCCS\\CS5800\\mesh models\\Generic-scans\\Resistor.stl", "resistor.png", RayTracingMethod::OCTREE);
 		//Airless Ball Model
-		tracer.TraceImage("C:\\Users\\j`\\OneDrive\\Documents\\MS-UCCS\\CS5800\\mesh models\\Generic-scans\\Airless_2.stl", "airless-ball.png");
+		tracer.TraceImage("C:\\Users\\j`\\OneDrive\\Documents\\MS-UCCS\\CS5800\\mesh models\\Generic-scans\\Airless_2.stl", "airless-ball.png", RayTracingMethod::OCTREE);
 		//Utah Teapot High Res
-		tracer.TraceImage("C:\\Users\\j`\\OneDrive\\Documents\\MS-UCCS\\CS5800\\mesh models\\Utah_Teapot\\utahHR.stl", "utahTeapot.png");
+		tracer.TraceImage("C:\\Users\\j`\\OneDrive\\Documents\\MS-UCCS\\CS5800\\mesh models\\Utah_Teapot\\utahHR.stl", "utahTeapot.png", RayTracingMethod::OCTREE);
 		//Lucy Model -- High Res
-		tracer.TraceImage("C:\\Users\\j`\\OneDrive\\Documents\\MS-UCCS\\CS5800\\mesh models\\lucy_scans\\lucy\\lucy.stl", "lucy.png");
+		tracer.TraceImage("C:\\Users\\j`\\OneDrive\\Documents\\MS-UCCS\\CS5800\\mesh models\\lucy_scans\\lucy\\lucy.stl", "lucy.png", RayTracingMethod::OCTREE);
 
 		LOG_INFO("========================================");
 		LOG_INFO("All processing complete!");

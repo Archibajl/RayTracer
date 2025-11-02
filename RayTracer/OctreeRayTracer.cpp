@@ -1,7 +1,12 @@
 #include "OctreeRayTracer.h"
+#include "GeometryUtils.h"
 
 using namespace cg_datastructures;
 using namespace vector_math;
+
+// ============================================================================
+// CONSTRUCTOR
+// ============================================================================
 
 OctreeRayTracer::OctreeRayTracer(const VoxelGrid& grid, int maxDepth, int maxTrianglesPerNode)
     : voxelGrid(grid), maxDepth(maxDepth), maxTrianglesPerNode(maxTrianglesPerNode) {
@@ -16,6 +21,10 @@ OctreeRayTracer::OctreeRayTracer(const VoxelGrid& grid, int maxDepth, int maxTri
     LOG_INFO("[{}] Octree built: {} total nodes, {} leaf nodes",
         getMethodName(), totalNodes, leafNodes);
 }
+
+// ============================================================================
+// RAY GENERATION
+// ============================================================================
 
 Ray OctreeRayTracer::generateRay(const Camera& camera, float u, float v) {
     // Convert FOV to radians
@@ -42,10 +51,14 @@ Ray OctreeRayTracer::generateRay(const Camera& camera, float u, float v) {
     return Ray(camera.position, direction);
 }
 
+// ============================================================================
+// SHADING
+// ============================================================================
+
 Vec3 OctreeRayTracer::computeShading(const RayHit& hit, float v) const {
     if (hit.hit) {
         // Simple solid color for hits
-        return { 1.0f, 1.0f, 1.0f }; // White
+        return { 0.0f, 0.0f, 0.0f }; // Black
     }
     else {
         // Background gradient
@@ -53,41 +66,22 @@ Vec3 OctreeRayTracer::computeShading(const RayHit& hit, float v) const {
     }
 }
 
-std::vector<Vec3> OctreeRayTracer::render(const Camera& camera, int width, int height) {
-    std::vector<Vec3> frameBuffer(width * height);
+// ============================================================================
+// RENDERING - STATISTICS HELPERS
+// ============================================================================
 
-    LOG_INFO("[{}] Rendering {}x{} image...", getMethodName(), width, height);
-
-    // Reset statistics
+void OctreeRayTracer::resetRenderingStatistics() {
     nodesVisited = 0;
     triangleTests = 0;
-    int hitCount = 0;
-    int totalRays = width * height;
+}
 
-    for (int y = 0; y < height; ++y) {
-        if (y % (height / 10) == 0) {
-            LOG_INFO("Progress: {}%", 100 * y / height);
-        }
-
-        for (int x = 0; x < width; ++x) {
-            // Calculate normalized device coordinates (0 to 1)
-            float u = static_cast<float>(x) / static_cast<float>(width);
-            float v = static_cast<float>(y) / static_cast<float>(height);
-
-            // Generate and trace ray
-            Ray ray = generateRay(camera, u, v);
-            RayHit hit = traceRay(ray);
-
-            if (hit.hit) {
-                hitCount++;
-            }
-
-            // Compute shading
-            Vec3 color = computeShading(hit, v);
-            frameBuffer[y * width + x] = color;
-        }
+void OctreeRayTracer::logProgressUpdate(int currentRow, int totalRows) const {
+    if (currentRow % (totalRows / 10) == 0) {
+        LOG_INFO("Progress: {}%", 100 * currentRow / totalRows);
     }
+}
 
+void OctreeRayTracer::logRenderingStatistics(int hitCount, int totalRays) const {
     LOG_INFO("[{}] Rendering complete!", getMethodName());
     LOG_INFO("[{}] Ray hits: {} / {} ({:.1f}%)",
         getMethodName(), hitCount, totalRays, 100.0f * hitCount / totalRays);
@@ -95,13 +89,72 @@ std::vector<Vec3> OctreeRayTracer::render(const Camera& camera, int width, int h
         getMethodName(), nodesVisited, (float)nodesVisited / totalRays);
     LOG_INFO("[{}] Triangle tests: {}, Avg per ray: {:.1f}",
         getMethodName(), triangleTests, (float)triangleTests / totalRays);
+}
+
+// ============================================================================
+// RENDERING - PIXEL RENDERING
+// ============================================================================
+
+Vec3 OctreeRayTracer::renderPixel(const Camera& camera, int x, int y, int width, int height) {
+    // Calculate normalized device coordinates (0 to 1)
+    float u = static_cast<float>(x) / static_cast<float>(width);
+    float v = static_cast<float>(y) / static_cast<float>(height);
+
+    // Generate and trace ray
+    Ray ray = generateRay(camera, u, v);
+    RayHit hit = traceRay(ray);
+
+    // Compute shading
+    return computeShading(hit, v);
+}
+
+// ============================================================================
+// RENDERING - MAIN RENDER FUNCTION
+// ============================================================================
+
+std::vector<Vec3> OctreeRayTracer::render(const Camera& camera, int width, int height) {
+    std::vector<Vec3> frameBuffer(width * height);
+
+    LOG_INFO("[{}] Rendering {}x{} image...", getMethodName(), width, height);
+
+    resetRenderingStatistics();
+    int hitCount = 0;
+    int totalRays = width * height;
+
+    for (int y = 0; y < height; ++y) {
+        logProgressUpdate(y, height);
+
+        for (int x = 0; x < width; ++x) {
+            Vec3 color = renderPixel(camera, x, y, width, height);
+            frameBuffer[y * width + x] = color;
+
+            // Track hits for statistics
+            Ray ray = generateRay(camera,
+                static_cast<float>(x) / static_cast<float>(width),
+                static_cast<float>(y) / static_cast<float>(height));
+            RayHit hit = traceRay(ray);
+            if (hit.hit) {
+                hitCount++;
+            }
+        }
+    }
+
+    logRenderingStatistics(hitCount, totalRays);
 
     return frameBuffer;
 }
 
+// ============================================================================
+// RAY TRACING
+// ============================================================================
+
 RayHit OctreeRayTracer::traceRay(const Ray& ray) {
     return traverseOctree(ray);
 }
+
+// ============================================================================
+// GEOMETRY INTERSECTION - WRAPPER FUNCTIONS
+// ============================================================================
 
 bool OctreeRayTracer::rayBoxIntersection(
     const Ray& ray,
@@ -109,24 +162,7 @@ bool OctreeRayTracer::rayBoxIntersection(
     const Vec3& boxMax,
     float& tMin, float& tMax) {
 
-    const float EPSILON = 1e-6f;
-
-    // Handle near-zero direction components
-    float invDirX = (std::abs(ray.direction.x) > EPSILON) ? (1.0f / ray.direction.x) : 1e30f;
-    float invDirY = (std::abs(ray.direction.y) > EPSILON) ? (1.0f / ray.direction.y) : 1e30f;
-    float invDirZ = (std::abs(ray.direction.z) > EPSILON) ? (1.0f / ray.direction.z) : 1e30f;
-
-    float tx1 = (boxMin.x - ray.origin.x) * invDirX;
-    float tx2 = (boxMax.x - ray.origin.x) * invDirX;
-    float ty1 = (boxMin.y - ray.origin.y) * invDirY;
-    float ty2 = (boxMax.y - ray.origin.y) * invDirY;
-    float tz1 = (boxMin.z - ray.origin.z) * invDirZ;
-    float tz2 = (boxMax.z - ray.origin.z) * invDirZ;
-
-    tMin = std::max(std::max(std::min(tx1, tx2), std::min(ty1, ty2)), std::min(tz1, tz2));
-    tMax = std::min(std::min(std::max(tx1, tx2), std::max(ty1, ty2)), std::max(tz1, tz2));
-
-    return tMax >= tMin && tMax >= 0.0f;
+    return GeometryUtils::rayBoxIntersection(ray, boxMin, boxMax, tMin, tMax);
 }
 
 bool OctreeRayTracer::rayTriangleIntersection(
@@ -134,39 +170,12 @@ bool OctreeRayTracer::rayTriangleIntersection(
     const Triangle& tri,
     float& t, float& u, float& v) {
 
-    const float EPSILON = 0.0000001f;
-
-    Vec3 edge1 = subtract(tri.v1, tri.v0);
-    Vec3 edge2 = subtract(tri.v2, tri.v0);
-
-    Vec3 h = cross(ray.direction, edge2);
-    float a = dot(edge1, h);
-
-    // Ray is parallel to triangle
-    if (a > -EPSILON && a < EPSILON) {
-        return false;
-    }
-
-    float f = 1.0f / a;
-    Vec3 s = subtract(ray.origin, tri.v0);
-    u = f * dot(s, h);
-
-    if (u < 0.0f || u > 1.0f) {
-        return false;
-    }
-
-    Vec3 q = cross(s, edge1);
-    v = f * dot(ray.direction, q);
-
-    if (v < 0.0f || u + v > 1.0f) {
-        return false;
-    }
-
-    // Calculate t to find intersection point
-    t = f * dot(edge2, q);
-
-    return t > EPSILON;
+    return GeometryUtils::rayTriangleIntersection(ray, tri, t, u, v);
 }
+
+// ============================================================================
+// OCTREE BUILDING - MAIN FUNCTION
+// ============================================================================
 
 /**
  * Build octree from scene triangles
@@ -193,6 +202,10 @@ void OctreeRayTracer::buildOctree() {
     LOG_INFO("[{}] Subdivision complete", getMethodName());
 }
 
+// ============================================================================
+// OCTREE BUILDING - CHILD NODE CREATION
+// ============================================================================
+
 void OctreeRayTracer::createChildNodes(OctreeNode* node, const Vec3& center) {
     // Create 8 children (octants) using the center point
     Vec3 childBounds[8][2] = {
@@ -214,6 +227,10 @@ void OctreeRayTracer::createChildNodes(OctreeNode* node, const Vec3& center) {
     }
 }
 
+// ============================================================================
+// OCTREE BUILDING - TRIANGLE DISTRIBUTION
+// ============================================================================
+
 void OctreeRayTracer::distributeTrianglesToChildren(OctreeNode* node) {
     // Distribute triangles to children based on overlap
     for (unsigned int triIdx : node->triangleIndices) {
@@ -232,6 +249,32 @@ void OctreeRayTracer::distributeTrianglesToChildren(OctreeNode* node) {
     node->isLeaf = false;
 }
 
+// ============================================================================
+// OCTREE BUILDING - SUBDIVISION HELPERS
+// ============================================================================
+
+bool OctreeRayTracer::shouldSubdivideNode(const OctreeNode* node, int depth) const {
+    return depth < maxDepth && node->triangleIndices.size() > maxTrianglesPerNode;
+}
+
+Vec3 OctreeRayTracer::computeNodeCenter(const OctreeNode* node) const {
+    return {
+        (node->minBound.x + node->maxBound.x) * 0.5f,
+        (node->minBound.y + node->maxBound.y) * 0.5f,
+        (node->minBound.z + node->maxBound.z) * 0.5f
+    };
+}
+
+void OctreeRayTracer::subdivideChildrenRecursively(OctreeNode* node, int depth) {
+    for (int i = 0; i < 8; ++i) {
+        subdivideNode(node->children[i].get(), depth + 1);
+    }
+}
+
+// ============================================================================
+// OCTREE BUILDING - RECURSIVE SUBDIVISION
+// ============================================================================
+
 /**
  * Subdivide a node if it contains too many triangles
  *
@@ -242,17 +285,13 @@ void OctreeRayTracer::distributeTrianglesToChildren(OctreeNode* node) {
  */
 void OctreeRayTracer::subdivideNode(OctreeNode* node, int depth) {
     // Stop conditions
-    if (depth >= maxDepth || node->triangleIndices.size() <= maxTrianglesPerNode) {
+    if (!shouldSubdivideNode(node, depth)) {
         leafNodes++;
         return;
     }
 
     // Calculate octant center
-    Vec3 center = {
-        (node->minBound.x + node->maxBound.x) * 0.5f,
-        (node->minBound.y + node->maxBound.y) * 0.5f,
-        (node->minBound.z + node->maxBound.z) * 0.5f
-    };
+    Vec3 center = computeNodeCenter(node);
 
     // Create 8 child nodes
     createChildNodes(node, center);
@@ -261,10 +300,12 @@ void OctreeRayTracer::subdivideNode(OctreeNode* node, int depth) {
     distributeTrianglesToChildren(node);
 
     // Recursively subdivide children
-    for (int i = 0; i < 8; ++i) {
-        subdivideNode(node->children[i].get(), depth + 1);
-    }
+    subdivideChildrenRecursively(node, depth);
 }
+
+// ============================================================================
+// TRIANGLE-BOX INTERSECTION - AABB OVERLAP TEST
+// ============================================================================
 
 bool OctreeRayTracer::checkTriangleBoxAABBOverlap(
     const Vec3& v0, const Vec3& v1, const Vec3& v2,
@@ -290,6 +331,10 @@ bool OctreeRayTracer::checkTriangleBoxAABBOverlap(
     return true;
 }
 
+// ============================================================================
+// TRIANGLE-BOX INTERSECTION - PLANE-BOX TEST
+// ============================================================================
+
 bool OctreeRayTracer::checkTrianglePlaneBoxIntersection(
     const Vec3& v0, const Vec3& v1, const Vec3& v2,
     const Vec3& boxHalfSize) const {
@@ -313,6 +358,30 @@ bool OctreeRayTracer::checkTrianglePlaneBoxIntersection(
     return true;
 }
 
+// ============================================================================
+// TRIANGLE-BOX INTERSECTION - BOX COMPUTATION HELPERS
+// ============================================================================
+
+Vec3 OctreeRayTracer::computeBoxCenter(const Vec3& boxMin, const Vec3& boxMax) const {
+    return {
+        (boxMin.x + boxMax.x) * 0.5f,
+        (boxMin.y + boxMax.y) * 0.5f,
+        (boxMin.z + boxMax.z) * 0.5f
+    };
+}
+
+Vec3 OctreeRayTracer::computeBoxHalfSize(const Vec3& boxMin, const Vec3& boxMax) const {
+    return {
+        (boxMax.x - boxMin.x) * 0.5f,
+        (boxMax.y - boxMin.y) * 0.5f,
+        (boxMax.z - boxMin.z) * 0.5f
+    };
+}
+
+// ============================================================================
+// TRIANGLE-BOX INTERSECTION - MAIN FUNCTION
+// ============================================================================
+
 /**
  * Check if a triangle intersects an axis-aligned bounding box
  * Uses separating axis theorem
@@ -323,35 +392,15 @@ bool OctreeRayTracer::triangleIntersectsBox(
     const Vec3& boxMax) {
 
     // Transform to box-centered coordinate system
-    Vec3 boxCenter = {
-        (boxMin.x + boxMax.x) * 0.5f,
-        (boxMin.y + boxMax.y) * 0.5f,
-        (boxMin.z + boxMax.z) * 0.5f
-    };
+    Vec3 boxCenter = computeBoxCenter(boxMin, boxMax);
+    Vec3 boxHalfSize = computeBoxHalfSize(boxMin, boxMax);
 
-    Vec3 boxHalfSize = {
-        (boxMax.x - boxMin.x) * 0.5f,
-        (boxMax.y - boxMin.y) * 0.5f,
-        (boxMax.z - boxMin.z) * 0.5f
-    };
-
-    // Translate triangle to box space (box centered at origin)
-    Vec3 v0 = subtract(tri.v0, boxCenter);
-    Vec3 v1 = subtract(tri.v1, boxCenter);
-    Vec3 v2 = subtract(tri.v2, boxCenter);
-
-    // Test 1: Triangle AABB vs box AABB
-    if (!checkTriangleBoxAABBOverlap(v0, v1, v2, boxHalfSize)) {
-        return false;
-    }
-
-    // Test 2: Plane of triangle vs box
-    if (!checkTrianglePlaneBoxIntersection(v0, v1, v2, boxHalfSize)) {
-        return false;
-    }
-
-    return true;
+    return GeometryUtils::triangleIntersectsBox(tri, boxCenter, boxHalfSize);
 }
+
+// ============================================================================
+// OCTREE TRAVERSAL - MAIN FUNCTION
+// ============================================================================
 
 /**
  * Traverse octree to find ray-triangle intersections
@@ -370,6 +419,10 @@ RayHit OctreeRayTracer::traverseOctree(const Ray& ray) {
 
     return result;
 }
+
+// ============================================================================
+// OCTREE TRAVERSAL - LEAF NODE TRIANGLE TESTING
+// ============================================================================
 
 void OctreeRayTracer::testLeafNodeTriangles(
     const Ray& ray, const OctreeNode* node, RayHit& result) {
@@ -392,6 +445,10 @@ void OctreeRayTracer::testLeafNodeTriangles(
         }
     }
 }
+
+// ============================================================================
+// OCTREE TRAVERSAL - RECURSIVE NODE TRAVERSAL
+// ============================================================================
 
 /**
  * Recursively traverse octree node

@@ -139,6 +139,7 @@
     <ClCompile Include="VectorMath.cpp" />
     <ClCompile Include="ARTRayTracer.cpp" />
     <ClCompile Include="OctreeRayTracer.cpp" />
+    <ClCompile Include="GeometryUtils.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ImageSaver.h" />
@@ -157,6 +158,7 @@
     <ClInclude Include="VoxelGrid.h" />
     <ClInclude Include="VoxelizationHelpers.h" />
     <ClInclude Include="Voxels.h" />
+    <ClInclude Include="GeometryUtils.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="RayTracer.rc" />

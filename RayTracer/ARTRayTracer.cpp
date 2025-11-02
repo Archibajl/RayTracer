@@ -1,14 +1,24 @@
 #include "ARTRayTracer.h"
+#include "GeometryUtils.h"
 
 using namespace cg_datastructures;
 using namespace vector_math;
+
+// ============================================================================
+// CONSTRUCTOR
+// ============================================================================
 
 ARTRayTracer::ARTRayTracer(const VoxelGrid& grid)
     : voxelGrid(grid) {
     LOG_INFO("[{}] Initialized with uniform grid: {}x{}x{}",
         getMethodName(), grid.nx, grid.ny, grid.nz);
-    LOG_INFO("[{}] Based on Fujimoto et al. 1986 ARTS algorithm", getMethodName());
+    LOG_INFO("[{}] Using simple array-based traversal (all voxels)", getMethodName());
+    LOG_INFO("[{}] Total voxels to test per ray: {}", getMethodName(), grid.nx * grid.ny * grid.nz);
 }
+
+// ============================================================================
+// RAY GENERATION
+// ============================================================================
 
 Ray ARTRayTracer::generateRay(const Camera& camera, float u, float v) {
     // Convert FOV to radians
@@ -35,10 +45,14 @@ Ray ARTRayTracer::generateRay(const Camera& camera, float u, float v) {
     return Ray(camera.position, direction);
 }
 
+// ============================================================================
+// SHADING
+// ============================================================================
+
 Vec3 ARTRayTracer::computeShading(const RayHit& hit, float v) const {
     if (hit.hit) {
         // Simple solid color for hits
-        return { 1.0f, 1.0f, 1.0f }; // White
+        return { 0.0f, 0.0f, 0.0f }; // Black
     }
     else {
         // Background gradient
@@ -46,41 +60,22 @@ Vec3 ARTRayTracer::computeShading(const RayHit& hit, float v) const {
     }
 }
 
-std::vector<Vec3> ARTRayTracer::render(const Camera& camera, int width, int height) {
-    std::vector<Vec3> frameBuffer(width * height);
+// ============================================================================
+// RENDERING - STATISTICS HELPERS
+// ============================================================================
 
-    LOG_INFO("[{}] Rendering {}x{} image...", getMethodName(), width, height);
-
-    // Reset statistics
+void ARTRayTracer::resetRenderingStatistics() {
     voxelsTraversed = 0;
     trianglesTests = 0;
-    int hitCount = 0;
-    int totalRays = width * height;
+}
 
-    for (int y = 0; y < height; ++y) {
-        if (y % (height / 10) == 0) {
-            LOG_INFO("Progress: {}%", 100 * y / height);
-        }
-
-        for (int x = 0; x < width; ++x) {
-            // Calculate normalized device coordinates (0 to 1)
-            float u = static_cast<float>(x) / static_cast<float>(width);
-            float v = static_cast<float>(y) / static_cast<float>(height);
-
-            // Generate and trace ray
-            Ray ray = generateRay(camera, u, v);
-            RayHit hit = traceRay(ray);
-
-            if (hit.hit) {
-                hitCount++;
-            }
-
-            // Compute shading
-            Vec3 color = computeShading(hit, v);
-            frameBuffer[y * width + x] = color;
-        }
+void ARTRayTracer::logProgressUpdate(int currentRow, int totalRows) const {
+    if (currentRow % (totalRows / 10) == 0) {
+        LOG_INFO("Progress: {}%", 100 * currentRow / totalRows);
     }
+}
 
+void ARTRayTracer::logRenderingStatistics(int hitCount, int totalRays) const {
     LOG_INFO("[{}] Rendering complete!", getMethodName());
     LOG_INFO("[{}] Ray hits: {} / {} ({:.1f}%)",
         getMethodName(), hitCount, totalRays, 100.0f * hitCount / totalRays);
@@ -88,13 +83,72 @@ std::vector<Vec3> ARTRayTracer::render(const Camera& camera, int width, int heig
         getMethodName(), voxelsTraversed, (float)voxelsTraversed / totalRays);
     LOG_INFO("[{}] Triangle tests: {}, Avg per ray: {:.1f}",
         getMethodName(), trianglesTests, (float)trianglesTests / totalRays);
+}
+
+// ============================================================================
+// RENDERING - PIXEL RENDERING
+// ============================================================================
+
+Vec3 ARTRayTracer::renderPixel(const Camera& camera, int x, int y, int width, int height) {
+    // Calculate normalized device coordinates (0 to 1)
+    float u = static_cast<float>(x) / static_cast<float>(width);
+    float v = static_cast<float>(y) / static_cast<float>(height);
+
+    // Generate and trace ray
+    Ray ray = generateRay(camera, u, v);
+    RayHit hit = traceRay(ray);
+
+    // Compute shading
+    return computeShading(hit, v);
+}
+
+// ============================================================================
+// RENDERING - MAIN RENDER FUNCTION
+// ============================================================================
+
+std::vector<Vec3> ARTRayTracer::render(const Camera& camera, int width, int height) {
+    std::vector<Vec3> frameBuffer(width * height);
+
+    LOG_INFO("[{}] Rendering {}x{} image...", getMethodName(), width, height);
+
+    resetRenderingStatistics();
+    int hitCount = 0;
+    int totalRays = width * height;
+
+    for (int y = 0; y < height; ++y) {
+        logProgressUpdate(y, height);
+
+        for (int x = 0; x < width; ++x) {
+            Vec3 color = renderPixel(camera, x, y, width, height);
+            frameBuffer[y * width + x] = color;
+
+            // Track hits for statistics
+            Ray ray = generateRay(camera,
+                static_cast<float>(x) / static_cast<float>(width),
+                static_cast<float>(y) / static_cast<float>(height));
+            RayHit hit = traceRay(ray);
+            if (hit.hit) {
+                hitCount++;
+            }
+        }
+    }
+
+    logRenderingStatistics(hitCount, totalRays);
 
     return frameBuffer;
 }
 
+// ============================================================================
+// RAY TRACING
+// ============================================================================
+
 RayHit ARTRayTracer::traceRay(const Ray& ray) {
     return traverse3DDDA(ray);
 }
+
+// ============================================================================
+// GEOMETRY INTERSECTION - WRAPPER FUNCTIONS
+// ============================================================================
 
 bool ARTRayTracer::rayBoxIntersection(
     const Ray& ray,
@@ -102,24 +156,7 @@ bool ARTRayTracer::rayBoxIntersection(
     const Vec3& boxMax,
     float& tMin, float& tMax) {
 
-    const float EPSILON = 1e-6f;
-
-    // Handle near-zero direction components
-    float invDirX = (std::abs(ray.direction.x) > EPSILON) ? (1.0f / ray.direction.x) : 1e30f;
-    float invDirY = (std::abs(ray.direction.y) > EPSILON) ? (1.0f / ray.direction.y) : 1e30f;
-    float invDirZ = (std::abs(ray.direction.z) > EPSILON) ? (1.0f / ray.direction.z) : 1e30f;
-
-    float tx1 = (boxMin.x - ray.origin.x) * invDirX;
-    float tx2 = (boxMax.x - ray.origin.x) * invDirX;
-    float ty1 = (boxMin.y - ray.origin.y) * invDirY;
-    float ty2 = (boxMax.y - ray.origin.y) * invDirY;
-    float tz1 = (boxMin.z - ray.origin.z) * invDirZ;
-    float tz2 = (boxMax.z - ray.origin.z) * invDirZ;
-
-    tMin = std::max(std::max(std::min(tx1, tx2), std::min(ty1, ty2)), std::min(tz1, tz2));
-    tMax = std::min(std::min(std::max(tx1, tx2), std::max(ty1, ty2)), std::max(tz1, tz2));
-
-    return tMax >= tMin && tMax >= 0.0f;
+    return GeometryUtils::rayBoxIntersection(ray, boxMin, boxMax, tMin, tMax);
 }
 
 bool ARTRayTracer::rayTriangleIntersection(
@@ -127,43 +164,31 @@ bool ARTRayTracer::rayTriangleIntersection(
     const Triangle& tri,
     float& t, float& u, float& v) {
 
-    const float EPSILON = 0.0000001f;
-
-    Vec3 edge1 = subtract(tri.v1, tri.v0);
-    Vec3 edge2 = subtract(tri.v2, tri.v0);
-
-    Vec3 h = cross(ray.direction, edge2);
-    float a = dot(edge1, h);
-
-    // Ray is parallel to triangle
-    if (a > -EPSILON && a < EPSILON) {
-        return false;
-    }
-
-    float f = 1.0f / a;
-    Vec3 s = subtract(ray.origin, tri.v0);
-    u = f * dot(s, h);
-
-    if (u < 0.0f || u > 1.0f) {
-        return false;
-    }
-
-    Vec3 q = cross(s, edge1);
-    v = f * dot(ray.direction, q);
-
-    if (v < 0.0f || u + v > 1.0f) {
-        return false;
-    }
-
-    // Calculate t to find intersection point
-    t = f * dot(edge2, q);
-
-    return t > EPSILON;
+    return GeometryUtils::rayTriangleIntersection(ray, tri, t, u, v);
 }
 
-size_t ARTRayTracer::getVoxelIndex(int ix, int iy, int iz) const {
-    return ix + voxelGrid.nx * (iy + voxelGrid.ny * iz);
+// ============================================================================
+// VOXEL GRID HELPERS
+// ============================================================================
+
+Vec3 ARTRayTracer::computeGridEntryPoint(const Ray& ray, float tMin) const {
+    if (tMin > 0.0f) {
+        // Ray origin is outside grid, use entry point with small offset
+        return add(ray.origin, multiply(ray.direction, tMin + 1e-5f));
+    }
+    return ray.origin;
 }
+
+int ARTRayTracer::worldToVoxelIndex(float worldCoord, float gridMin, float voxelSize, int maxIndex) const {
+    int index = static_cast<int>((worldCoord - gridMin) / voxelSize);
+    return std::max(0, std::min(maxIndex, index));
+}
+
+// ============================================================================
+// 3DDDA TRAVERSAL - INITIALIZATION (UNUSED - kept for reference)
+// ============================================================================
+// NOTE: These functions are from the original Fujimoto 3DDDA algorithm
+// They are currently unused but kept for reference/future optimization
 
 ARTRayTracer::VoxelTraversalState ARTRayTracer::initializeVoxelTraversal(
     const Ray& ray, float tMin) const {
@@ -171,24 +196,22 @@ ARTRayTracer::VoxelTraversalState ARTRayTracer::initializeVoxelTraversal(
     VoxelTraversalState state;
 
     // Calculate entry point into grid
-    Vec3 startPoint = ray.origin;
-    if (tMin > 0.0f) {
-        // Ray origin is outside grid, use entry point
-        startPoint = add(ray.origin, multiply(ray.direction, tMin + 1e-5f));
-    }
+    Vec3 startPoint = computeGridEntryPoint(ray, tMin);
 
     // Convert world position to voxel indices (O(1) lookup)
-    state.ix = static_cast<int>((startPoint.x - voxelGrid.minBound.x) / voxelGrid.voxelSize.x);
-    state.iy = static_cast<int>((startPoint.y - voxelGrid.minBound.y) / voxelGrid.voxelSize.y);
-    state.iz = static_cast<int>((startPoint.z - voxelGrid.minBound.z) / voxelGrid.voxelSize.z);
-
-    // Clamp to grid bounds
-    state.ix = std::max(0, std::min(static_cast<int>(voxelGrid.nx) - 1, state.ix));
-    state.iy = std::max(0, std::min(static_cast<int>(voxelGrid.ny) - 1, state.iy));
-    state.iz = std::max(0, std::min(static_cast<int>(voxelGrid.nz) - 1, state.iz));
+    state.ix = worldToVoxelIndex(startPoint.x, voxelGrid.minBound.x,
+        voxelGrid.voxelSize.x, static_cast<int>(voxelGrid.nx) - 1);
+    state.iy = worldToVoxelIndex(startPoint.y, voxelGrid.minBound.y,
+        voxelGrid.voxelSize.y, static_cast<int>(voxelGrid.ny) - 1);
+    state.iz = worldToVoxelIndex(startPoint.z, voxelGrid.minBound.z,
+        voxelGrid.voxelSize.z, static_cast<int>(voxelGrid.nz) - 1);
 
     return state;
 }
+
+// ============================================================================
+// 3DDDA TRAVERSAL - STEP DIRECTION COMPUTATION (UNUSED - kept for reference)
+// ============================================================================
 
 void ARTRayTracer::computeVoxelStepDirection(const Ray& ray, VoxelTraversalState& state) const {
     const float EPSILON = 1e-6f;
@@ -207,46 +230,41 @@ void ARTRayTracer::computeVoxelStepDirection(const Ray& ray, VoxelTraversalState
         std::abs(voxelGrid.voxelSize.z / ray.direction.z) : std::numeric_limits<float>::max();
 }
 
-void ARTRayTracer::computeTMaxValues(const Ray& ray, VoxelTraversalState& state) const {
+// ============================================================================
+// 3DDDA TRAVERSAL - TMAX COMPUTATION (UNUSED - kept for reference)
+// ============================================================================
+
+float ARTRayTracer::computeAxisTMax(
+    float rayOrigin, float rayDirection,
+    float gridMin, float voxelSize, int voxelIndex) const {
+
     const float EPSILON = 1e-6f;
 
-    // Calculate tMax - parameter value at next voxel boundary
-    if (std::abs(ray.direction.x) > EPSILON) {
-        if (ray.direction.x > 0) {
-            state.tMaxX = ((voxelGrid.minBound.x + (state.ix + 1) * voxelGrid.voxelSize.x) - ray.origin.x) / ray.direction.x;
-        }
-        else {
-            state.tMaxX = ((voxelGrid.minBound.x + state.ix * voxelGrid.voxelSize.x) - ray.origin.x) / ray.direction.x;
-        }
+    if (std::abs(rayDirection) > EPSILON) {
+        float boundaryOffset = (rayDirection > 0) ? (voxelIndex + 1) : voxelIndex;
+        float boundary = gridMin + boundaryOffset * voxelSize;
+        return (boundary - rayOrigin) / rayDirection;
     }
     else {
-        state.tMaxX = std::numeric_limits<float>::max();
-    }
-
-    if (std::abs(ray.direction.y) > EPSILON) {
-        if (ray.direction.y > 0) {
-            state.tMaxY = ((voxelGrid.minBound.y + (state.iy + 1) * voxelGrid.voxelSize.y) - ray.origin.y) / ray.direction.y;
-        }
-        else {
-            state.tMaxY = ((voxelGrid.minBound.y + state.iy * voxelGrid.voxelSize.y) - ray.origin.y) / ray.direction.y;
-        }
-    }
-    else {
-        state.tMaxY = std::numeric_limits<float>::max();
-    }
-
-    if (std::abs(ray.direction.z) > EPSILON) {
-        if (ray.direction.z > 0) {
-            state.tMaxZ = ((voxelGrid.minBound.z + (state.iz + 1) * voxelGrid.voxelSize.z) - ray.origin.z) / ray.direction.z;
-        }
-        else {
-            state.tMaxZ = ((voxelGrid.minBound.z + state.iz * voxelGrid.voxelSize.z) - ray.origin.z) / ray.direction.z;
-        }
-    }
-    else {
-        state.tMaxZ = std::numeric_limits<float>::max();
+        return std::numeric_limits<float>::max();
     }
 }
+
+void ARTRayTracer::computeTMaxValues(const Ray& ray, VoxelTraversalState& state) const {
+    // Calculate tMax - parameter value at next voxel boundary for each axis
+    state.tMaxX = computeAxisTMax(ray.origin.x, ray.direction.x,
+        voxelGrid.minBound.x, voxelGrid.voxelSize.x, state.ix);
+
+    state.tMaxY = computeAxisTMax(ray.origin.y, ray.direction.y,
+        voxelGrid.minBound.y, voxelGrid.voxelSize.y, state.iy);
+
+    state.tMaxZ = computeAxisTMax(ray.origin.z, ray.direction.z,
+        voxelGrid.minBound.z, voxelGrid.voxelSize.z, state.iz);
+}
+
+// ============================================================================
+// 3DDDA TRAVERSAL - VOXEL ADVANCEMENT (UNUSED - kept for reference)
+// ============================================================================
 
 void ARTRayTracer::advanceToNextVoxel(VoxelTraversalState& state) const {
     // Choose the axis with the smallest tMax (closest boundary)
@@ -276,11 +294,14 @@ void ARTRayTracer::advanceToNextVoxel(VoxelTraversalState& state) const {
     }
 }
 
+// ============================================================================
+// 3DDDA TRAVERSAL - TRIANGLE TESTING
+// ============================================================================
+
 bool ARTRayTracer::testVoxelTriangles(const Ray& ray, int ix, int iy, int iz, RayHit& result) {
     voxelsTraversed++; // Statistics
 
-    size_t voxelIdx = getVoxelIndex(ix, iy, iz);
-    const Voxel& voxel = voxelGrid.voxels[voxelIdx];
+    const Voxel& voxel = voxelGrid.voxels[ix][iy][iz];
 
     // If voxel is occupied, test triangles (spatial coherence)
     if (!voxel.occupied || voxel.triangle_count == 0) {
@@ -290,7 +311,8 @@ bool ARTRayTracer::testVoxelTriangles(const Ray& ray, int ix, int iy, int iz, Ra
     for (unsigned int i = 0; i < voxel.triangle_count; ++i) {
         trianglesTests++; // Statistics
 
-        unsigned int triIdx = voxel.triangle_start_idx + i;
+        // Get triangle index from the flat triangle_indices array
+        unsigned int triIdx = voxelGrid.triangle_indices[voxel.triangle_start_idx + i];
         const Triangle& tri = voxelGrid.triangles[triIdx];
 
         float t, u, v;
@@ -301,7 +323,6 @@ bool ARTRayTracer::testVoxelTriangles(const Ray& ray, int ix, int iy, int iz, Ra
                 result.point = add(ray.origin, multiply(ray.direction, t));
                 result.normal = normalize(tri.normal);
                 result.triangleIdx = triIdx;
-                result.voxelIdx = static_cast<unsigned int>(voxelIdx);
             }
         }
     }
@@ -309,55 +330,39 @@ bool ARTRayTracer::testVoxelTriangles(const Ray& ray, int ix, int iy, int iz, Ra
     return result.hit;
 }
 
+// ============================================================================
+// 3DDDA TRAVERSAL - MAIN ALGORITHM
+// ============================================================================
+
 /**
- * ARTS 3DDDA Algorithm
+ * Simple Array-Based Voxel Traversal
  *
- * This implements Fujimoto's classic 3DDDA (3D Digital Differential Analyzer)
- * algorithm for efficient voxel grid traversal.
+ * This implements a straightforward brute-force approach that traverses
+ * all voxels in the grid using simple nested for-loops.
  *
- * Key principle: Incrementally step through voxels along the ray path,
- * testing only triangles in occupied voxels. The algorithm maintains
- * tMax values for each axis to determine which voxel boundary is crossed next.
+ * Trade-off: Simple to understand but tests all voxels (not just along ray path).
+ * Good for: Small grids, debugging, or when simplicity is preferred over speed.
  */
 RayHit ARTRayTracer::traverse3DDDA(const Ray& ray) {
     RayHit result;
     result.hit = false;
     result.t = std::numeric_limits<float>::max();
 
-    // Step 1: Check if ray intersects the grid bounding box
+    // Check if ray intersects the grid bounding box
     float tMin, tMax;
     if (!rayBoxIntersection(ray, voxelGrid.minBound, voxelGrid.maxBound, tMin, tMax)) {
         return result; // Ray misses the entire grid
     }
 
-    // Step 2: Initialize voxel traversal state
-    VoxelTraversalState state = initializeVoxelTraversal(ray, tMin);
+    // Simple nested loop approach - traverse all voxels like a normal 3D array
+    for (int iz = 0; iz < static_cast<int>(voxelGrid.nz); ++iz) {
+        for (int iy = 0; iy < static_cast<int>(voxelGrid.ny); ++iy) {
+            for (int ix = 0; ix < static_cast<int>(voxelGrid.nx); ++ix) {
 
-    // Step 3: Compute step directions and delta values
-    computeVoxelStepDirection(ray, state);
-
-    // Step 4: Compute initial tMax values
-    computeTMaxValues(ray, state);
-
-    // Step 5: 3DDDA main loop - traverse voxels until we exit the grid or find a hit
-    int maxSteps = static_cast<int>(voxelGrid.nx + voxelGrid.ny + voxelGrid.nz);
-    int steps = 0;
-
-    while (state.ix >= 0 && state.ix < static_cast<int>(voxelGrid.nx) &&
-           state.iy >= 0 && state.iy < static_cast<int>(voxelGrid.ny) &&
-           state.iz >= 0 && state.iz < static_cast<int>(voxelGrid.nz) &&
-           steps < maxSteps) {
-
-        steps++;
-
-        // Test triangles in current voxel
-        if (testVoxelTriangles(ray, state.ix, state.iy, state.iz, result)) {
-            // ARTS optimization: Return first hit found (front-to-back traversal)
-            return result;
+                // Test triangles in current voxel
+                testVoxelTriangles(ray, ix, iy, iz, result);
+            }
         }
-
-        // Advance to next voxel
-        advanceToNextVoxel(state);
     }
 
     return result;

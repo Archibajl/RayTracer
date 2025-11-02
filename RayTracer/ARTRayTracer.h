@@ -8,19 +8,20 @@
 #include <cmath>
 
 /**
- * ARTS (Accelerated Ray-Tracing System) Ray Tracer
+ * Voxel Grid Ray Tracer (Simplified Array-Based Traversal)
  *
- * Implementation of Fujimoto's 3DDDA (3D Digital Differential Analyzer) algorithm
- * from the seminal 1986 paper "ARTS: Accelerated Ray-Tracing System" by
- * Akira Fujimoto, Takayuki Tanaka, and K. Iwata.
+ * Originally based on Fujimoto's ARTS 3DDDA algorithm, now simplified to use
+ * straightforward nested for-loops for easier understanding and debugging.
  *
- * Key features of ARTS:
- * - 3DDDA voxel traversal with spatial coherence
- * - Uniform spatial subdivision for O(1) voxel lookup
- * - Performance virtually independent of object count
- * - Optimized for scenes with many objects (1000+)
+ * Current implementation:
+ * - Simple triple-nested for-loop traversal (z, y, x order)
+ * - Tests all voxels in the grid sequentially
+ * - Easy to understand and modify
+ * - Good for small to medium grids (< 100x100x100)
  *
- * This implementation follows the classic ARTS algorithm with modern optimizations.
+ * Trade-off: Simplicity over speed
+ * - Original 3DDDA helper functions kept for reference (marked UNUSED)
+ * - Can be restored for performance-critical applications
  */
 class ARTRayTracer : public IRayTracer {
 public:
@@ -33,7 +34,7 @@ public:
 
     cg_datastructures::RayHit traceRay(const cg_datastructures::Ray& ray) override;
 
-    std::string getMethodName() const override { return "ARTS (3DDDA)"; }
+    std::string getMethodName() const override { return "Voxel Grid (Simple)"; }
 
 private:
     const VoxelGrid& voxelGrid;
@@ -60,8 +61,19 @@ private:
                             int ix, int iy, int iz,
                             cg_datastructures::RayHit& result);
 
+    // Voxel traversal helper functions
+    cg_datastructures::Vec3 computeGridEntryPoint(const cg_datastructures::Ray& ray, float tMin) const;
+    int worldToVoxelIndex(float worldCoord, float gridMin, float voxelSize, int maxIndex) const;
+    float computeAxisTMax(float rayOrigin, float rayDirection,
+                         float gridMin, float voxelSize, int voxelIndex) const;
+
     // Rendering helper methods
     cg_datastructures::Vec3 computeShading(const cg_datastructures::RayHit& hit, float v) const;
+    cg_datastructures::Vec3 renderPixel(const cg_datastructures::Camera& camera,
+                                       int x, int y, int width, int height);
+    void resetRenderingStatistics();
+    void logProgressUpdate(int currentRow, int totalRows) const;
+    void logRenderingStatistics(int hitCount, int totalRays) const;
 
     // Helper functions
     cg_datastructures::Ray generateRay(const cg_datastructures::Camera& camera, float u, float v);
@@ -72,7 +84,6 @@ private:
     bool rayTriangleIntersection(const cg_datastructures::Ray& ray,
                                 const cg_datastructures::Triangle& tri,
                                 float& t, float& u, float& v);
-    size_t getVoxelIndex(int ix, int iy, int iz) const;
 
     // Statistics
     mutable size_t voxelsTraversed = 0;

@@ -303,31 +303,31 @@ bool ARTRayTracer::testVoxelTriangles(const Ray& ray, int ix, int iy, int iz, Ra
 
     const Voxel& voxel = voxelGrid.voxels[ix][iy][iz];
 
-    // If voxel is occupied, test triangles (spatial coherence)
-    if (!voxel.occupied || voxel.triangle_count == 0) {
-        return false;
-    }
+    // Simple occupancy check: just check if voxel contains an object
+    if (voxel.occupied) {
+        // Calculate voxel center for hit point (simplified)
+        Vec3 voxelCenter = {
+            voxelGrid.minBound.x + (ix + 0.5f) * voxelGrid.voxelSize.x,
+            voxelGrid.minBound.y + (iy + 0.5f) * voxelGrid.voxelSize.y,
+            voxelGrid.minBound.z + (iz + 0.5f) * voxelGrid.voxelSize.z
+        };
 
-    for (unsigned int i = 0; i < voxel.triangle_count; ++i) {
-        trianglesTests++; // Statistics
+        // Calculate approximate distance along ray to voxel center
+        Vec3 toVoxel = subtract(voxelCenter, ray.origin);
+        float t = dot(toVoxel, ray.direction);
 
-        // Get triangle index from the flat triangle_indices array
-        unsigned int triIdx = voxelGrid.triangle_indices[voxel.triangle_start_idx + i];
-        const Triangle& tri = voxelGrid.triangles[triIdx];
-
-        float t, u, v;
-        if (rayTriangleIntersection(ray, tri, t, u, v)) {
-            if (t < result.t) {
-                result.hit = true;
-                result.t = t;
-                result.point = add(ray.origin, multiply(ray.direction, t));
-                result.normal = normalize(tri.normal);
-                result.triangleIdx = triIdx;
-            }
+        // Only register hit if it's the closest so far and in front of ray
+        if (t > 0.0f && t < result.t) {
+            result.hit = true;
+            result.t = t;
+            result.point = voxelCenter;
+            result.normal = { 0.0f, 0.0f, 1.0f }; // Default normal
+            result.triangleIdx = 0; // No specific triangle
         }
+        return true;
     }
 
-    return result.hit;
+    return false;
 }
 
 // ============================================================================

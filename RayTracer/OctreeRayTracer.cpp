@@ -427,21 +427,26 @@ RayHit OctreeRayTracer::traverseOctree(const Ray& ray) {
 void OctreeRayTracer::testLeafNodeTriangles(
     const Ray& ray, const OctreeNode* node, RayHit& result) {
 
-    // Test all triangles in this leaf node
-    for (unsigned int triIdx : node->triangleIndices) {
-        triangleTests++; // Statistics
+    // Simple occupancy check: if node has any triangles, it's occupied
+    if (!node->triangleIndices.empty()) {
+        // Calculate node center for hit point (simplified)
+        Vec3 nodeCenter = {
+            (node->minBound.x + node->maxBound.x) * 0.5f,
+            (node->minBound.y + node->maxBound.y) * 0.5f,
+            (node->minBound.z + node->maxBound.z) * 0.5f
+        };
 
-        const Triangle& tri = voxelGrid.triangles[triIdx];
+        // Calculate approximate distance along ray to node center
+        Vec3 toNode = subtract(nodeCenter, ray.origin);
+        float t = dot(toNode, ray.direction);
 
-        float t, u, v;
-        if (rayTriangleIntersection(ray, tri, t, u, v)) {
-            if (t < result.t) {
-                result.hit = true;
-                result.t = t;
-                result.point = add(ray.origin, multiply(ray.direction, t));
-                result.normal = normalize(tri.normal);
-                result.triangleIdx = triIdx;
-            }
+        // Only register hit if it's the closest so far and in front of ray
+        if (t > 0.0f && t < result.t) {
+            result.hit = true;
+            result.t = t;
+            result.point = nodeCenter;
+            result.normal = { 0.0f, 0.0f, 1.0f }; // Default normal
+            result.triangleIdx = 0; // No specific triangle
         }
     }
 }

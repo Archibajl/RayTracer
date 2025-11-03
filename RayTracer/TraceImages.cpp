@@ -24,34 +24,24 @@ std::string TraceImages::getRayTracingMethodName(RayTracingMethod method) {
 }
 
 void TraceImages::logStartInfo(const std::string& gridFileLocation, const std::string& outputFileName, RayTracingMethod method) {
-	LOG_INFO("========================================");
-	LOG_INFO("Starting image generation");
-	LOG_INFO("Input file: {}", gridFileLocation);
-	LOG_INFO("Output file: {}", outputFileName);
-	LOG_INFO("Ray tracing method: {}", getRayTracingMethodName(method));
-	LOG_INFO("========================================");
+	LOG_INFO("========== Starting image generation ==========");
+	LOG_INFO("Input: {} | Output: {} | Method: {}", gridFileLocation, outputFileName, getRayTracingMethodName(method));
 }
 
 void TraceImages::logCompletionInfo(double totalTimeSeconds, const std::string& outputFileName) {
-	LOG_INFO("========================================");
-	LOG_INFO("Total time: {:.3f} seconds", totalTimeSeconds);
-	LOG_INFO("Successfully generated image: {}", outputFileName);
+	LOG_INFO("Success! Generated {} in {:.3f}s", outputFileName, totalTimeSeconds);
 }
 
 void TraceImages::logErrorInfo(const std::string& gridFileLocation, const std::string& errorMessage, double timeSeconds) {
-	LOG_ERROR("========================================");
-	LOG_ERROR("FAILED to generate image for: {}", gridFileLocation);
-	LOG_ERROR("Error: {}", errorMessage);
-	LOG_ERROR("Time before failure: {:.3f} seconds", timeSeconds);
-	LOG_ERROR("========================================");
+	LOG_ERROR("Failed: {} - {} (after {:.3f}s)", gridFileLocation, errorMessage, timeSeconds);
 }
 
 void TraceImages::renderImageWithTiming(VoxelGrid& voxelGrid, const std::string& outputFileName, RayTracingMethod method) {
-	auto raytraceStart = std::chrono::high_resolution_clock::now();
+	auto start = std::chrono::high_resolution_clock::now();
 	genateImageFromGrid(voxelGrid, outputFileName, method);
-	auto raytraceEnd = std::chrono::high_resolution_clock::now();
-	auto raytraceDuration = std::chrono::duration_cast<std::chrono::milliseconds>(raytraceEnd - raytraceStart);
-	LOG_INFO("Ray tracing time: {:.3f} seconds", raytraceDuration.count() / 1000.0);
+	auto end = std::chrono::high_resolution_clock::now();
+	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+	LOG_INFO("Ray tracing time: {:.3f}s", duration.count() / 1000.0);
 }
 
 // ============================================================================
@@ -88,46 +78,36 @@ void TraceImages::TraceImage(std::string gridFileLocation, std::string outputFil
 // ============================================================================
 
 Camera TraceImages::setupCamera(const VoxelGrid& voxelGrid) {
-	// Use pre-computed center
 	Vec3 center = voxelGrid.center;
-
-	// Compute grid size
 	Vec3 size = {
 		voxelGrid.maxBound.x - voxelGrid.minBound.x,
 		voxelGrid.maxBound.y - voxelGrid.minBound.y,
 		voxelGrid.maxBound.z - voxelGrid.minBound.z
 	};
 
-	// Compute camera distance
-	float maxSize = std::max(std::max(size.x, size.y), size.z);
+	float maxSize = std::max({size.x, size.y, size.z});
 	float cameraDistance = maxSize * 2.5f;
 
-	// Log camera setup
-	LOG_INFO("Mesh center: ({}, {}, {})", center.x, center.y, center.z);
-	LOG_INFO("Mesh size: ({}, {}, {})", size.x, size.y, size.z);
-	LOG_INFO("Camera distance: {}", cameraDistance);
+	LOG_INFO("Camera: center({:.2f}, {:.2f}, {:.2f}), size({:.2f}, {:.2f}, {:.2f}), dist={:.2f}",
+		center.x, center.y, center.z, size.x, size.y, size.z, cameraDistance);
 
-	// Setup camera positioned to view the entire mesh
 	return Camera(
-		{ center.x, center.y, center.z - cameraDistance },  // Position (back from center)
-		{ center.x, center.y, center.z },                    // Look at center
-		{ 0.0f, 1.0f, 0.0f },                                // Up vector
-		60.0f,                                                // FOV
-		800.0f / 600.0f                                       // Aspect ratio
+		{center.x, center.y, center.z - cameraDistance},  // Position
+		center,                                            // Look at
+		{0.0f, 1.0f, 0.0f},                               // Up
+		60.0f,                                             // FOV
+		800.0f / 600.0f                                    // Aspect ratio
 	);
 }
 
 std::vector<Vec3> TraceImages::renderWithTiming(IRayTracer* raytracer, const Camera& camera, int width, int height) {
-	LOG_INFO("Rendering {}x{} image...", width, height);
-
-	auto renderStart = std::chrono::high_resolution_clock::now();
+	auto start = std::chrono::high_resolution_clock::now();
 	auto pixels = raytracer->render(camera, width, height);
-	auto renderEnd = std::chrono::high_resolution_clock::now();
-	auto renderDuration = std::chrono::duration_cast<std::chrono::milliseconds>(renderEnd - renderStart);
+	auto end = std::chrono::high_resolution_clock::now();
+	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
 
-	LOG_INFO("Rendering complete!");
-	LOG_INFO("Image rendered with {} pixels in {:.3f} seconds", pixels.size(), renderDuration.count() / 1000.0);
-	LOG_INFO("Render performance: {:.2f} rays/sec", (width * height) / (renderDuration.count() / 1000.0));
+	LOG_INFO("Rendered {} pixels in {:.3f}s ({:.0f} rays/sec)",
+		pixels.size(), duration.count() / 1000.0, (width * height) / (duration.count() / 1000.0));
 
 	return pixels;
 }
@@ -180,39 +160,28 @@ VoxelGrid TraceImages::generateVoxelGridFromStlMesh(const stl_reader::StlMesh<fl
 void TraceImages::SaveImage(const std::string& filename,
 	const std::vector<cg_datastructures::Vec3>& pixels,
 	int width, int height) {
-		// Save to file - create directory if it doesn't exist
-		std::string outputPath = filename;
-		std::filesystem::path filePath(outputPath);
-		std::filesystem::path dirPath = filePath.parent_path();
+	std::filesystem::path filePath(filename);
+	std::filesystem::path dirPath = filePath.parent_path();
 
-		try {
-			// Create directory if it doesn't exist
-			if (!dirPath.empty() && !std::filesystem::exists(dirPath)) {
-				std::filesystem::create_directories(dirPath);
-				LOG_INFO("Created output directory: {}", dirPath.string());
-			}
-
-			if (saveToPPM(outputPath, pixels, width, height)) {
-				LOG_INFO("Image saved to: {}", outputPath);
-			}
-			else {
-				LOG_ERROR("Failed to save image to: {}", outputPath);
-			}
+	try {
+		// Create output directory if needed
+		if (!dirPath.empty() && !std::filesystem::exists(dirPath)) {
+			std::filesystem::create_directories(dirPath);
 		}
-		catch (const std::exception& e) {
-			LOG_ERROR("Error saving image: {}", e.what());
 
-			// Fallback: save to current directory
-			std::string fallbackPath = "output.ppm";
-			LOG_INFO("Attempting to save to current directory: {}", fallbackPath);
-			if (saveToPPM(fallbackPath, pixels, width, height)) {
-				LOG_INFO("Image saved to: {}", std::filesystem::absolute(fallbackPath).string());
-			}
-			else {
-				LOG_ERROR("Failed to save to fallback location");
-			}
+		if (saveToPPM(filename, pixels, width, height)) {
+			LOG_INFO("Image saved: {}", filename);
+		} else {
+			LOG_ERROR("Failed to save: {}", filename);
 		}
 	}
+	catch (const std::exception& e) {
+		LOG_ERROR("Save error: {} - falling back to output.ppm", e.what());
+		if (saveToPPM("output.ppm", pixels, width, height)) {
+			LOG_INFO("Saved to fallback: {}", std::filesystem::absolute("output.ppm").string());
+		}
+	}
+}
 
 // ============================================================================
 // VOXEL GRID LOADING/GENERATION

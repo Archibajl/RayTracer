@@ -82,6 +82,30 @@ namespace GeometryUtils {
     }
 
 // ============================================================================
+// WORLD TO BARYCENTRIC COORDINATE CONVERSION
+// ============================================================================
+
+    void worldToBarycentric(const Vec3& point, const Triangle& tri, float& u, float& v, float& w) {
+        // Compute vectors from v0 to other vertices and to the point
+        Vec3 v0v1 = subtract(tri.v1, tri.v0);
+        Vec3 v0v2 = subtract(tri.v2, tri.v0);
+        Vec3 v0p = subtract(point, tri.v0);
+
+        // Compute dot products
+        float d00 = dot(v0v1, v0v1);
+        float d01 = dot(v0v1, v0v2);
+        float d11 = dot(v0v2, v0v2);
+        float d20 = dot(v0p, v0v1);
+        float d21 = dot(v0p, v0v2);
+
+        // Compute barycentric coordinates
+        float denom = d00 * d11 - d01 * d01;
+        v = (d11 * d20 - d01 * d21) / denom;
+        w = (d00 * d21 - d01 * d20) / denom;
+        u = 1.0f - v - w;
+    }
+
+// ============================================================================
 // TRIANGLE Min Max Vector COMPUTATION
 // ============================================================================
 

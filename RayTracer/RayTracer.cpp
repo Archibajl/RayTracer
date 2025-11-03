@@ -6,27 +6,31 @@
 
 
 int main() {
-	// Initialize logger
 	Logger::init();
 	Logger::setLevel(spdlog::level::debug);
 
 	LOG_INFO("========================================");
 	LOG_INFO("Ray Tracer Starting");
-	LOG_INFO("Current working directory: {}", std::filesystem::current_path().string());
 	LOG_INFO("========================================");
 
 	try {
-		TraceImages tracer = TraceImages();
+		TraceImages tracer;
 
-		// Process multiple STL files using OCTREE method (much faster!)
-		//Resistor Model
-		tracer.TraceImage("C:\\Users\\j`\\OneDrive\\Documents\\MS-UCCS\\CS5800\\mesh models\\Generic-scans\\Resistor.stl", "resistor.png", RayTracingMethod::OCTREE);
-		//Airless Ball Model
-		tracer.TraceImage("C:\\Users\\j`\\OneDrive\\Documents\\MS-UCCS\\CS5800\\mesh models\\Generic-scans\\Airless_2.stl", "airless-ball.png", RayTracingMethod::OCTREE);
-		//Utah Teapot High Res
-		tracer.TraceImage("C:\\Users\\j`\\OneDrive\\Documents\\MS-UCCS\\CS5800\\mesh models\\Utah_Teapot\\utahHR.stl", "utahTeapot.png", RayTracingMethod::OCTREE);
-		//Lucy Model -- High Res
-		tracer.TraceImage("C:\\Users\\j`\\OneDrive\\Documents\\MS-UCCS\\CS5800\\mesh models\\lucy_scans\\lucy\\lucy.stl", "lucy.png", RayTracingMethod::OCTREE);
+		// Base directory for models
+		const std::string modelDir = "C:\\Users\\j`\\OneDrive\\Documents\\MS-UCCS\\CS5800\\mesh models";
+
+		// Model configurations: {input_path, output_name}
+		std::vector<std::pair<std::string, std::string>> models = {
+			{modelDir + "\\Generic-scans\\Resistor.stl", "resistor.png"},
+			{modelDir + "\\Generic-scans\\Airless_2.stl", "airless-ball.png"},
+			{modelDir + "\\Utah_Teapot\\utahHR.stl", "utahTeapot.png"},
+			{modelDir + "\\lucy_scans\\lucy\\lucy.stl", "lucy.png"}
+		};
+
+		// Process all models
+		for (const auto& [inputPath, outputName] : models) {
+			tracer.TraceImage(inputPath, outputName, RayTracingMethod::OCTREE);
+		}
 
 		LOG_INFO("========================================");
 		LOG_INFO("All processing complete!");
@@ -34,9 +38,7 @@ int main() {
 		return 0;
 	}
 	catch (const std::exception& e) {
-		LOG_CRITICAL("========================================");
 		LOG_CRITICAL("FATAL ERROR: {}", e.what());
-		LOG_CRITICAL("========================================");
 		return 1;
 	}
 }

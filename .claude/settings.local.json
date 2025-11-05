@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(msbuild:*)"
+      "Bash(msbuild:*)",
+      "Bash(cmd /c \"msbuild RayTracer.sln /p:Configuration=Release /p:Platform=x64 /t:Build /v:minimal 2>&1\")"
     ],
     "deny": [],
     "ask": []

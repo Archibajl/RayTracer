@@ -12,11 +12,6 @@ namespace GeometryUtils {
     // Ray-Triangle Intersection using Möller-Trumbore algorithm
     bool rayTriangleIntersection(const Ray& ray, const Triangle& triangle, float& t, float& u, float& v);
 
-    // Convert point in world space to barycentric coordinates relative to a triangle
-    // Returns barycentric coordinates (u, v, w) where w = 1 - u - v
-    // Point P = u*v0 + v*v1 + w*v2
-    void worldToBarycentric(const Vec3& point, const Triangle& triangle, float& u, float& v, float& w);
-
     // Compute AABB for a triangle
     void computeTriangleMinMax(const Triangle& triangle, Vec3& min, Vec3& max);
 

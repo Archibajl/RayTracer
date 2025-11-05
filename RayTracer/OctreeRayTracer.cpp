@@ -202,6 +202,10 @@ OctreeRayTracer::VoxelTraversalState OctreeRayTracer::initializeTraversal(const 
     state.tMaxY = computeTMax(ray.origin.y, ray.direction.y, voxelGrid.minBound.y, voxelGrid.voxelSize.y, state.iy);
     state.tMaxZ = computeTMax(ray.origin.z, ray.direction.z, voxelGrid.minBound.z, voxelGrid.voxelSize.z, state.iz);
 
+    // Initialize current position at ray origin
+    state.tCurrent = 0.0f;
+    state.currentPosition = ray.origin;
+
     return state;
 }
 
@@ -209,29 +213,67 @@ OctreeRayTracer::VoxelTraversalState OctreeRayTracer::initializeTraversal(const 
 // VOXEL GRID TRAVERSAL - VOXEL ADVANCEMENT
 // ============================================================================
 
-void OctreeRayTracer::advanceToNextVoxel(OctreeRayTracer::VoxelTraversalState& state) const {
-    // Choose the axis with the smallest tMax (closest boundary)
+void OctreeRayTracer::advanceToNextVoxel(OctreeRayTracer::VoxelTraversalState& state, const Ray& ray) {
+    // Choose the axis with the smallest tMax (closest boundary) and step to next voxel
+    // Also update the current position to the voxel exit point
     if (state.tMaxX < state.tMaxY) {
         if (state.tMaxX < state.tMaxZ) {
+            // Exit through X face - update position to exit point
+            state.tCurrent = state.tMaxX;
+            state.currentPosition = {
+                ray.origin.x + state.tCurrent * ray.direction.x,
+                ray.origin.y + state.tCurrent * ray.direction.y,
+                ray.origin.z + state.tCurrent * ray.direction.z
+            };
+
+            // Step in X direction
             state.ix += state.stepX;
             state.tMaxX += state.tDeltaX;
         }
         else {
+            // Exit through Z face - update position to exit point
+            state.tCurrent = state.tMaxZ;
+            state.currentPosition = {
+                ray.origin.x + state.tCurrent * ray.direction.x,
+                ray.origin.y + state.tCurrent * ray.direction.y,
+                ray.origin.z + state.tCurrent * ray.direction.z
+            };
+
+            // Step in Z direction
             state.iz += state.stepZ;
             state.tMaxZ += state.tDeltaZ;
         }
     }
     else {
         if (state.tMaxY < state.tMaxZ) {
+            // Exit through Y face - update position to exit point
+            state.tCurrent = state.tMaxY;
+            state.currentPosition = {
+                ray.origin.x + state.tCurrent * ray.direction.x,
+                ray.origin.y + state.tCurrent * ray.direction.y,
+                ray.origin.z + state.tCurrent * ray.direction.z
+            };
+
+            // Step in Y direction
             state.iy += state.stepY;
             state.tMaxY += state.tDeltaY;
         }
         else {
+            // Exit through Z face - update position to exit point
+            state.tCurrent = state.tMaxZ;
+            state.currentPosition = {
+                ray.origin.x + state.tCurrent * ray.direction.x,
+                ray.origin.y + state.tCurrent * ray.direction.y,
+                ray.origin.z + state.tCurrent * ray.direction.z
+            };
+
+            // Step in Z direction
             state.iz += state.stepZ;
             state.tMaxZ += state.tDeltaZ;
         }
     }
 }
+
 
 // ============================================================================
 // VOXEL GRID TRAVERSAL - VOXEL TESTING
@@ -273,7 +315,9 @@ bool OctreeRayTracer::testVoxelTriangles(const Ray& ray, int ix, int iy, int iz,
  * Traverse voxel grid using 3D-DDA algorithm
  *
  * Based on Amanatides & Woo's "A Fast Voxel Traversal Algorithm"
- * Visits voxels in the order they are intersected by the ray
+ *
+ * This algorithm steps through voxels along the ray path, testing only
+ * the triangles in occupied voxels for intersection.
  */
 RayHit OctreeRayTracer::traverseVoxelGrid(const Ray& ray) {
     RayHit result;
@@ -297,8 +341,8 @@ RayHit OctreeRayTracer::traverseVoxelGrid(const Ray& ray) {
             break;
         }
 
-        // Advance to next voxel
-        advanceToNextVoxel(state);
+        // Advance to next voxel and update position to exit point
+        advanceToNextVoxel(state, ray);
     }
 
     return result;

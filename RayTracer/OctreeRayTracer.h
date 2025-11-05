@@ -4,6 +4,7 @@
 #include "SceneCreator.h"
 #include "VectorMath.h"
 #include "Logger.h"
+#include "GeometryUtils.h"
 #include <algorithm>
 #include <cmath>
 #include <memory>
@@ -43,6 +44,8 @@ private:
         int stepX, stepY, stepZ;  // Step direction (+1 or -1)
         float tMaxX, tMaxY, tMaxZ; // Parameter values at next voxel boundary
         float tDeltaX, tDeltaY, tDeltaZ; // Parameter increment to cross one voxel
+        float tCurrent;           // Current parameter value along ray
+        cg_datastructures::Vec3 currentPosition; // Current world position along ray
     };
 
     const VoxelGrid& voxelGrid;
@@ -52,7 +55,7 @@ private:
     VoxelTraversalState initializeTraversal(const cg_datastructures::Ray& ray) const;
     bool testVoxelTriangles(const cg_datastructures::Ray& ray, int ix, int iy, int iz,
                            cg_datastructures::RayHit& result);
-    void advanceToNextVoxel(VoxelTraversalState& state) const;
+    void advanceToNextVoxel(VoxelTraversalState& state, const cg_datastructures::Ray& ray);
     bool isVoxelInBounds(int ix, int iy, int iz) const;
 
     // Rendering helper methods

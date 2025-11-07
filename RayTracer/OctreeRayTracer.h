@@ -24,10 +24,10 @@
  * - Efficient for uniformly distributed geometry
  * - Simple traversal algorithm
  */
-class OctreeRayTracer : public IRayTracer {
+class OctreeLikeRayTracer : public IRayTracer {
 public:
-    OctreeRayTracer(const VoxelGrid& grid, int maxDepth = 8, int maxTrianglesPerNode = 10);
-    ~OctreeRayTracer() override = default;
+    OctreeLikeRayTracer(const VoxelGrid& grid, int maxDepth = 8, int maxTrianglesPerNode = 10);
+    ~OctreeLikeRayTracer() override = default;
 
     std::vector<cg_datastructures::Vec3> render(
         const cg_datastructures::Camera& camera,

@@ -45,12 +45,6 @@
     <ClCompile Include="TraceImages.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="VectorMath.cpp">
-      <Filter>Source Files\Utils</Filter>
-    </ClCompile>
-    <ClCompile Include="ARTRayTracer.cpp">
-      <Filter>Source Files\CPURayTracers</Filter>
-    </ClCompile>
     <ClCompile Include="OctreeRayTracer.cpp">
       <Filter>Source Files\CPURayTracers</Filter>
     </ClCompile>

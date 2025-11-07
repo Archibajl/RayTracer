@@ -8,7 +8,7 @@ using namespace vector_math;
 // CONSTRUCTOR
 // ============================================================================
 
-OctreeRayTracer::OctreeRayTracer(const VoxelGrid& grid, int maxDepth, int maxTrianglesPerNode)
+OctreeLikeRayTracer::OctreeLikeRayTracer(const VoxelGrid& grid, int maxDepth, int maxTrianglesPerNode)
     : voxelGrid(grid) {
 
     LOG_INFO("[{}] Initializing voxel grid ray tracer...", getMethodName());
@@ -24,7 +24,7 @@ OctreeRayTracer::OctreeRayTracer(const VoxelGrid& grid, int maxDepth, int maxTri
 // SHADING
 // ============================================================================
 
-Vec3 OctreeRayTracer::computeShading(const RayHit& hit, float v) const {
+Vec3 OctreeLikeRayTracer::computeShading(const RayHit& hit, float v) const {
     if (hit.hit) {
         // Simple solid color for hits
         return { 0.0f, 0.0f, 0.0f }; // Black
@@ -39,18 +39,18 @@ Vec3 OctreeRayTracer::computeShading(const RayHit& hit, float v) const {
 // RENDERING - STATISTICS HELPERS
 // ============================================================================
 
-void OctreeRayTracer::resetRenderingStatistics() {
+void OctreeLikeRayTracer::resetRenderingStatistics() {
     voxelsTraversed = 0;
     triangleTests = 0;
 }
 
-void OctreeRayTracer::logProgressUpdate(int currentRow, int totalRows) const {
+void OctreeLikeRayTracer::logProgressUpdate(int currentRow, int totalRows) const {
     if (currentRow % (totalRows / 10) == 0) {
         LOG_INFO("Progress: {}%", 100 * currentRow / totalRows);
     }
 }
 
-void OctreeRayTracer::logRenderingStatistics(int hitCount, int totalRays) const {
+void OctreeLikeRayTracer::logRenderingStatistics(int hitCount, int totalRays) const {
     LOG_INFO("[{}] Rendering complete!", getMethodName());
     LOG_INFO("[{}] Ray hits: {} / {} ({:.1f}%)",
         getMethodName(), hitCount, totalRays, 100.0f * hitCount / totalRays);
@@ -64,7 +64,7 @@ void OctreeRayTracer::logRenderingStatistics(int hitCount, int totalRays) const 
 // RENDERING - PIXEL RENDERING
 // ============================================================================
 
-Vec3 OctreeRayTracer::renderPixel(const Camera& camera, int x, int y, int width, int height) {
+Vec3 OctreeLikeRayTracer::renderPixel(const Camera& camera, int x, int y, int width, int height) {
     // Calculate normalized device coordinates (0 to 1)
     float u = static_cast<float>(x) / static_cast<float>(width);
     float v = static_cast<float>(y) / static_cast<float>(height);
@@ -81,7 +81,7 @@ Vec3 OctreeRayTracer::renderPixel(const Camera& camera, int x, int y, int width,
 // RENDERING - MAIN RENDER FUNCTION
 // ============================================================================
 
-std::vector<Vec3> OctreeRayTracer::render(const Camera& camera, int width, int height) {
+std::vector<Vec3> OctreeLikeRayTracer::render(const Camera& camera, int width, int height) {
     std::vector<Vec3> frameBuffer(width * height);
 
     LOG_INFO("[{}] Rendering {}x{} image...", getMethodName(), width, height);
@@ -117,7 +117,7 @@ std::vector<Vec3> OctreeRayTracer::render(const Camera& camera, int width, int h
 // RAY TRACING
 // ============================================================================
 
-RayHit OctreeRayTracer::traceRay(const Ray& ray) {
+RayHit OctreeLikeRayTracer::traceRay(const Ray& ray) {
     return traverseVoxelGrid(ray);
 }
 
@@ -125,7 +125,7 @@ RayHit OctreeRayTracer::traceRay(const Ray& ray) {
 // GEOMETRY INTERSECTION - WRAPPER FUNCTIONS
 // ============================================================================
 
-bool OctreeRayTracer::rayTriangleIntersection(
+bool OctreeLikeRayTracer::rayTriangleIntersection(
     const Ray& ray,
     const Triangle& tri,
     float& t, float& u, float& v) {
@@ -137,12 +137,12 @@ bool OctreeRayTracer::rayTriangleIntersection(
 // VOXEL GRID HELPERS
 // ============================================================================
 
-int OctreeRayTracer::worldToVoxelIndex(float worldCoord, float gridMin, float voxelSize, int maxIndex) const {
+int OctreeLikeRayTracer::worldToVoxelIndex(float worldCoord, float gridMin, float voxelSize, int maxIndex) const {
     int index = static_cast<int>((worldCoord - gridMin) / voxelSize);
     return std::max(0, std::min(index, maxIndex));
 }
 
-Vec3 OctreeRayTracer::voxelIndexToWorld(int ix, int iy, int iz) const {
+Vec3 OctreeLikeRayTracer::voxelIndexToWorld(int ix, int iy, int iz) const {
     return {
         voxelGrid.minBound.x + (ix + 0.5f) * voxelGrid.voxelSize.x,
         voxelGrid.minBound.y + (iy + 0.5f) * voxelGrid.voxelSize.y,
@@ -150,7 +150,7 @@ Vec3 OctreeRayTracer::voxelIndexToWorld(int ix, int iy, int iz) const {
     };
 }
 
-bool OctreeRayTracer::isVoxelInBounds(int ix, int iy, int iz) const {
+bool OctreeLikeRayTracer::isVoxelInBounds(int ix, int iy, int iz) const {
     return ix >= 0 && ix < voxelGrid.nx &&
            iy >= 0 && iy < voxelGrid.ny &&
            iz >= 0 && iz < voxelGrid.nz;
@@ -160,8 +160,8 @@ bool OctreeRayTracer::isVoxelInBounds(int ix, int iy, int iz) const {
 // VOXEL GRID TRAVERSAL - INITIALIZATION
 // ============================================================================
 
-OctreeRayTracer::VoxelTraversalState OctreeRayTracer::initializeTraversal(const Ray& ray) const {
-    OctreeRayTracer::VoxelTraversalState state;
+OctreeLikeRayTracer::VoxelTraversalState OctreeLikeRayTracer::initializeTraversal(const Ray& ray) const {
+    OctreeLikeRayTracer::VoxelTraversalState state;
     const float EPSILON = 1e-6f;
 
     // Find ray entry point into grid
@@ -213,7 +213,7 @@ OctreeRayTracer::VoxelTraversalState OctreeRayTracer::initializeTraversal(const 
 // VOXEL GRID TRAVERSAL - VOXEL ADVANCEMENT
 // ============================================================================
 
-void OctreeRayTracer::advanceToNextVoxel(OctreeRayTracer::VoxelTraversalState& state, const Ray& ray) {
+void OctreeLikeRayTracer::advanceToNextVoxel(OctreeLikeRayTracer::VoxelTraversalState& state, const Ray& ray) {
     // Choose the axis with the smallest tMax (closest boundary) and step to next voxel
     // Also update the current position to the voxel exit point
     if (state.tMaxX < state.tMaxY) {
@@ -279,7 +279,7 @@ void OctreeRayTracer::advanceToNextVoxel(OctreeRayTracer::VoxelTraversalState& s
 // VOXEL GRID TRAVERSAL - VOXEL TESTING
 // ============================================================================
 
-bool OctreeRayTracer::testVoxelTriangles(const Ray& ray, int ix, int iy, int iz, RayHit& result) {
+bool OctreeLikeRayTracer::testVoxelTriangles(const Ray& ray, int ix, int iy, int iz, RayHit& result) {
     voxelsTraversed++; // Statistics
 
     const cg_datastructures::Voxel& voxel = voxelGrid.voxels[ix][iy][iz];
@@ -319,13 +319,13 @@ bool OctreeRayTracer::testVoxelTriangles(const Ray& ray, int ix, int iy, int iz,
  * This algorithm steps through voxels along the ray path, testing only
  * the triangles in occupied voxels for intersection.
  */
-RayHit OctreeRayTracer::traverseVoxelGrid(const Ray& ray) {
+RayHit OctreeLikeRayTracer::traverseVoxelGrid(const Ray& ray) {
     RayHit result;
     result.hit = false;
     result.t = std::numeric_limits<float>::max();
 
     // Initialize traversal state
-    OctreeRayTracer::VoxelTraversalState state = initializeTraversal(ray);
+    OctreeLikeRayTracer::VoxelTraversalState state = initializeTraversal(ray);
 
     // Traverse voxels along the ray
     const int MAX_STEPS = voxelGrid.nx + voxelGrid.ny + voxelGrid.nz;
@@ -352,7 +352,7 @@ RayHit OctreeRayTracer::traverseVoxelGrid(const Ray& ray) {
 // RAY GENERATION
 // ============================================================================
 
-Ray OctreeRayTracer::generateRay(const Camera& camera, float u, float v) {
+Ray OctreeLikeRayTracer::generateRay(const Camera& camera, float u, float v) {
     // Convert FOV to radians
     float fovRad = camera.fov * 3.14159265f / 180.0f;
     float halfHeight = std::tan(fovRad / 2.0f);

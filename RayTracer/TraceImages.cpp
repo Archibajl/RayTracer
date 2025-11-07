@@ -3,7 +3,6 @@
 #include <filesystem>
 #include <chrono>
 #include "SceneCreator.h"
-#include "ARTRayTracer.h"
 #include "OctreeRayTracer.h"
 #include "ImageSaver.h"
 #include "STLReader.h"
@@ -331,21 +330,21 @@ VoxelGrid VoxelGrid::loadFromFile(const std::string& filename) {
 std::unique_ptr<IRayTracer> TraceImages::createRayTracer(VoxelGrid& voxelGrid, RayTracingMethod method) {
 	switch (method) {
 		case RayTracingMethod::VOXEL_DDA:
-			// VOXEL_DDA uses ARTS (3DDDA) which is a voxel-based DDA algorithm
-			return std::make_unique<ARTRayTracer>(voxelGrid);
+			// VOXEL_DDA uses Octree ray tracing
+			return std::make_unique<OctreeLikeRayTracer>(voxelGrid);
 
 		case RayTracingMethod::ART:
-			return std::make_unique<ARTRayTracer>(voxelGrid);
+			return std::make_unique<OctreeLikeRayTracer>(voxelGrid);
 
 		case RayTracingMethod::OCTREE:
-			return std::make_unique<OctreeRayTracer>(voxelGrid);
+			return std::make_unique<OctreeLikeRayTracer>(voxelGrid);
 
 		// Future methods can be added here:
 		// case RayTracingMethod::BVH:
 		//     return std::make_unique<BVHRayTracer>(voxelGrid);
 
 		default:
-			LOG_WARN("Unknown ray tracing method, defaulting to ARTS (3DDDA)");
-			return std::make_unique<ARTRayTracer>(voxelGrid);
+			LOG_WARN("Unknown ray tracing method, defaulting to Octree");
+			return std::make_unique<OctreeLikeRayTracer>(voxelGrid);
 	}
 }

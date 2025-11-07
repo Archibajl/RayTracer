@@ -136,9 +136,7 @@
     <ClCompile Include="SceneCreator.cpp" />
     <ClCompile Include="STLReader.cpp" />
     <ClCompile Include="TraceImages.cpp" />
-    <ClCompile Include="VectorMath.cpp" />
-    <ClCompile Include="ARTRayTracer.cpp" />
-    <ClCompile Include="OctreeRayTracer.cpp" />
+    <ClCompile Include="OctreeLikeRayTracer.cpp" />
     <ClCompile Include="GeometryUtils.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -153,7 +151,6 @@
     <ClInclude Include="STLReader.h" />
     <ClInclude Include="TraceImages.h" />
     <ClInclude Include="VectorMath.h" />
-    <ClInclude Include="ARTRayTracer.h" />
     <ClInclude Include="OctreeRayTracer.h" />
     <ClInclude Include="VoxelGrid.h" />
     <ClInclude Include="VoxelizationHelpers.h" />

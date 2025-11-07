@@ -162,7 +162,6 @@ bool OctreeLikeRayTracer::isVoxelInBounds(int ix, int iy, int iz) const {
 
 OctreeLikeRayTracer::VoxelTraversalState OctreeLikeRayTracer::initializeTraversal(const Ray& ray) const {
     OctreeLikeRayTracer::VoxelTraversalState state;
-    const float EPSILON = 1e-6f;
 
     // Find ray entry point into grid
     Vec3 startPoint = ray.origin;
@@ -181,21 +180,15 @@ OctreeLikeRayTracer::VoxelTraversalState OctreeLikeRayTracer::initializeTraversa
     state.stepZ = (ray.direction.z > 0) ? 1 : -1;
 
     // Calculate tDelta - parameter increment to cross one voxel
-    state.tDeltaX = (std::abs(ray.direction.x) > EPSILON) ?
-        std::abs(voxelGrid.voxelSize.x / ray.direction.x) : std::numeric_limits<float>::max();
-    state.tDeltaY = (std::abs(ray.direction.y) > EPSILON) ?
-        std::abs(voxelGrid.voxelSize.y / ray.direction.y) : std::numeric_limits<float>::max();
-    state.tDeltaZ = (std::abs(ray.direction.z) > EPSILON) ?
-        std::abs(voxelGrid.voxelSize.z / ray.direction.z) : std::numeric_limits<float>::max();
+    state.tDeltaX = std::abs(voxelGrid.voxelSize.x / ray.direction.x);
+    state.tDeltaY = std::abs(voxelGrid.voxelSize.y / ray.direction.y);
+    state.tDeltaZ = std::abs(voxelGrid.voxelSize.z / ray.direction.z);
 
     // Calculate tMax - parameter value at next voxel boundary for each axis
     auto computeTMax = [&](float rayOrigin, float rayDir, float gridMin, float voxelSize, int voxelIdx) -> float {
-        if (std::abs(rayDir) > EPSILON) {
-            float boundaryOffset = (rayDir > 0) ? (voxelIdx + 1) : voxelIdx;
-            float boundary = gridMin + boundaryOffset * voxelSize;
-            return (boundary - rayOrigin) / rayDir;
-        }
-        return std::numeric_limits<float>::max();
+        float boundaryOffset = (rayDir > 0) ? (voxelIdx + 1) : voxelIdx;
+        float boundary = gridMin + boundaryOffset * voxelSize;
+        return (boundary - rayOrigin) / rayDir;
     };
 
     state.tMaxX = computeTMax(ray.origin.x, ray.direction.x, voxelGrid.minBound.x, voxelGrid.voxelSize.x, state.ix);
@@ -286,21 +279,7 @@ bool OctreeLikeRayTracer::testVoxelTriangles(const Ray& ray, int ix, int iy, int
 
     // Simple occupancy check
     if (voxel.occupied) {
-        // Calculate voxel center for hit point
-        Vec3 voxelCenter = voxelIndexToWorld(ix, iy, iz);
 
-        // Calculate approximate distance along ray to voxel center
-        Vec3 toVoxel = subtract(voxelCenter, ray.origin);
-        float t = dot(toVoxel, ray.direction);
-
-        // Only register hit if it's the closest so far and in front of ray
-        if (t > 0.0f && t < result.t) {
-            result.hit = true;
-            result.t = t;
-            result.point = voxelCenter;
-            result.normal = { 0.0f, 0.0f, 1.0f }; // Default normal
-            result.triangleIdx = 0; // No specific triangle
-        }
         return true;
     }
 

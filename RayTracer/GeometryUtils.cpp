@@ -18,12 +18,10 @@ namespace GeometryUtils {
         const Vec3& boxMax,
         float& tNear, float& tFar) {
 
-        const float EPSILON = 1e-6f;
-
-        // Handle near-zero direction components
-        float invDirX = (std::abs(ray.direction.x) > EPSILON) ? (1.0f / ray.direction.x) : 1e30f;
-        float invDirY = (std::abs(ray.direction.y) > EPSILON) ? (1.0f / ray.direction.y) : 1e30f;
-        float invDirZ = (std::abs(ray.direction.z) > EPSILON) ? (1.0f / ray.direction.z) : 1e30f;
+        // Calculate inverse direction components
+        float invDirX = 1.0f / ray.direction.x;
+        float invDirY = 1.0f / ray.direction.y;
+        float invDirZ = 1.0f / ray.direction.z;
 
         float tx1 = (boxMin.x - ray.origin.x) * invDirX;
         float tx2 = (boxMax.x - ray.origin.x) * invDirX;

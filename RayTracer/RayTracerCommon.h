@@ -19,12 +19,12 @@ struct RayHit {
     float t;                    // Distance along ray
     Vec3 point;                 // Intersection point
     Vec3 normal;                // Surface normal at intersection
-    unsigned int triangleIdx;   // Index of hit triangle
-    unsigned int voxelIdx;      // Index of hit voxel (if applicable)
+    unsigned int triangleIndex;   // Index of hit triangle
+    unsigned int voxelIndex;      // Index of hit voxel (if applicable)
 
     RayHit() : hit(false), t(std::numeric_limits<float>::max()),
                point{0.0f, 0.0f, 0.0f}, normal{0.0f, 0.0f, 0.0f},
-               triangleIdx(0), voxelIdx(0) {}
+               triangleIndex(0), voxelIndex(0) {}
 };
 
 // Camera structure

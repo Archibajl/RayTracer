@@ -185,8 +185,8 @@ OctreeLikeRayTracer::VoxelTraversalState OctreeLikeRayTracer::initializeTraversa
     state.tDeltaZ = std::abs(voxelGrid.voxelSize.z / ray.direction.z);
 
     // Calculate tMax - parameter value at next voxel boundary for each axis
-    auto computeTMax = [&](float rayOrigin, float rayDir, float gridMin, float voxelSize, int voxelIdx) -> float {
-        float boundaryOffset = (rayDir > 0) ? (voxelIdx + 1) : voxelIdx;
+    auto computeTMax = [&](float rayOrigin, float rayDir, float gridMin, float voxelSize, int voxelIndex) -> float {
+        int boundaryOffset = (rayDir > 0) ? (voxelIndex + 1) : voxelIndex;
         float boundary = gridMin + boundaryOffset * voxelSize;
         return (boundary - rayOrigin) / rayDir;
     };
@@ -279,10 +279,26 @@ bool OctreeLikeRayTracer::testVoxelTriangles(const Ray& ray, int ix, int iy, int
 
     // Simple occupancy check
     if (voxel.occupied) {
+		bool hitFound = false;
 
-        return true;
+        for (unsigned int i = 0; i < voxel.triangle_count; ++i) {
+            unsigned int triIdx = voxelGrid.triangle_indices[voxel.triangle_start_idx + i];
+            const Triangle& triangle = voxelGrid.triangles[triIdx];
+            triangleTests++; // Statistics
+            float t, u, v;
+            if (rayTriangleIntersection(ray, triangle, t, u, v)) {
+                if (t < result.t && t > 0.0f) {
+                    result.hit = true;
+                    result.t = t;
+                    result.normal = triangle.normal;
+                    result.point = triangle.v0;
+                    result.triangleIndex = triIdx;
+                }
+            }
+		}
     }
 
+    result.hit = false;
     return false;
 }
 

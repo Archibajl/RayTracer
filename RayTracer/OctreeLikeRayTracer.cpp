@@ -27,7 +27,11 @@ OctreeLikeRayTracer::OctreeLikeRayTracer(const VoxelGrid& grid, int maxDepth, in
 Vec3 OctreeLikeRayTracer::computeShading(const RayHit& hit, float v) const {
     if (hit.hit) {
         // Simple solid color for hits
-        return { 0.9f, 0.9f, 0.9f }; // Black
+        Triangle triangleHit = voxelGrid.triangles[hit.triangleIndex];
+        //Compute Shading here if needed
+        Shaders::Pixel pixel = Shaders::LambertianShader(hit, 1.0l, 1.0l, 1.0l, triangleHit);
+        //return { 0.9f, 0.9f, 0.9f }; // White hit
+        return pixel.color;
     }
     else {
         // Background gradient
@@ -120,18 +124,6 @@ std::vector<Vec3> OctreeLikeRayTracer::render(const Camera& camera, int width, i
 RayHit OctreeLikeRayTracer::traceRay(const Ray& ray) {
     return traverseVoxelGrid(ray);
 }
-
-// ============================================================================
-// GEOMETRY INTERSECTION - WRAPPER FUNCTIONS
-// ============================================================================
-
-//bool OctreeLikeRayTracer::rayTriangleIntersection(
-//    const Ray& ray,
-//    const Triangle& tri,
-//    float& t, float& u, float& v) {
-//
-//    return GeometryUtils::rayTriangleIntersection(ray, tri, t, u, v);
-//}
 
 // ============================================================================
 // VOXEL GRID HELPERS
@@ -292,6 +284,7 @@ bool OctreeLikeRayTracer::testVoxelTriangles(const Ray& ray, int ix, int iy, int
                     result.t = t;
                     result.normal = triangle.normal;
                     result.point = triangle.v0;
+					result.origin = ray.origin;
                     result.triangleIndex = triIdx;
 				hitFound = true;
             }

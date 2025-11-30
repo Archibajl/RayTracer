@@ -37,17 +37,6 @@ namespace GeometryUtils {
     }
 
 // ============================================================================
-// RAY-TRIANGLE INTERSECTION (MÖLLER-TRUMBORE ALGORITHM)
-// ============================================================================
-
-  //  bool rayTriangleIntersection(
-  //      const Ray& ray,
-  //      const Triangle& tri,
-  //      float& t, float& u, float& v) {
-		//return true; // Placeholder implementation
-  //  }
-
-// ============================================================================
 // TRIANGLE Min Max Vector COMPUTATION
 // ============================================================================
 
@@ -100,54 +89,11 @@ namespace GeometryUtils {
 
         if (t > EPSILON) // ray intersection
         {
-            return  true; //Vec3(add(ray_origin, multiply(ray_vector, t)));
+            return  true; // Hit Intersection
         }
         else // This means that there is a line intersection but not a ray intersection.
-            return false; //{}; Vec3 ray_cross_e2 = cross(ray_vector, edge2);
+			return false; //Missed intersection
         
     }
-
-	// ============================================================================
-  //  bool triangleIntersectsBox(
-  //      const Vec3& ray_vector,
-		//const Vec3& ray_origin,
-  //      const Triangle& triangle)
-  //  {
-		////Smallest number to check against zero
-  //      constexpr float EPSILON = std::numeric_limits<float>::epsilon();
-
-  //      Vec3 edge1 = subtract(triangle.v1, triangle.v0);
-  //      Vec3 edge2 = subtract(triangle.v2, triangle.v0);
-
-  //              Vec3 ray_cross_e2 = cross(ray_vector, edge2);
-  //              float det = dot(edge1, ray_cross_e2);
-
-  //              if (det > -EPSILON && det < EPSILON)
-  //                  return false; //{};    // This ray is parallel to this triangle.
-
-  //              float inv_det = 1.0 / det;
-  //              Vec3 s = subtract(ray_origin, triangle.v0);
-  //              float u = inv_det * dot(s, ray_cross_e2);
-
-  //              if ((u < 0 && abs(u) > EPSILON) || (u > 1 && abs(u - 1) > EPSILON))
-  //                  return false; //{};
-
-  //              Vec3 s_cross_e1 = cross(s, edge1);
-  //              float v = inv_det * dot(ray_vector, s_cross_e1);
-
-  //              if ((v < 0 && abs(v) > EPSILON) || (u + v > 1 && abs(u + v - 1) > EPSILON))
-  //                  return false; //{};
-
-  //              // At this stage we can compute t to find out where the intersection point is on the line.
-  //              float t = inv_det * dot(edge2, s_cross_e1);
-
-  //              if (t > EPSILON) // ray intersection
-  //              {
-  //                  return  true; //Vec3(add(ray_origin, multiply(ray_vector, t)));
-  //              }
-  //              else // This means that there is a line intersection but not a ray intersection.
-  //                  return false; //{}; Vec3 ray_cross_e2 = cross(ray_vector, edge2);
-  //      
-  //  }
 
 }

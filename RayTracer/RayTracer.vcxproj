@@ -134,6 +134,7 @@
   <ItemGroup>
     <ClCompile Include="RayTracer.cpp" />
     <ClCompile Include="SceneCreator.cpp" />
+    <ClCompile Include="Shaders.cpp" />
     <ClCompile Include="STLReader.cpp" />
     <ClCompile Include="TraceImages.cpp" />
     <ClCompile Include="OctreeLikeRayTracer.cpp" />
@@ -148,6 +149,7 @@
     <ClInclude Include="RayTracerCommon.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="SceneCreator.h" />
+    <ClInclude Include="Shaders.h" />
     <ClInclude Include="STLReader.h" />
     <ClInclude Include="TraceImages.h" />
     <ClInclude Include="VectorMath.h" />

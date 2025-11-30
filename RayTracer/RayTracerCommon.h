@@ -18,6 +18,7 @@ struct RayHit {
     bool hit;
     float t;                    // Distance along ray
     Vec3 point;                 // Intersection point
+	Vec3 origin;                // Ray origin
     Vec3 normal;                // Surface normal at intersection
     unsigned int triangleIndex;   // Index of hit triangle
     unsigned int voxelIndex;      // Index of hit voxel (if applicable)

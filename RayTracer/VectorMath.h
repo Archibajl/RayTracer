@@ -26,6 +26,10 @@ namespace vector_math
         return a.x * b.x + a.y * b.y + a.z * b.z;
     }
 
+    inline Vec3 scale(const float scaler, const Vec3& v) {
+        return { scaler*v.x, scaler*v.y, scaler*v.z };
+	}
+
     inline Vec3 subtract(const Vec3& a, const Vec3& b) {
         return { a.x - b.x, a.y - b.y, a.z - b.z };
     }

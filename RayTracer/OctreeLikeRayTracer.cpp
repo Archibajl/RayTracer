@@ -276,10 +276,11 @@ bool OctreeLikeRayTracer::testVoxelTriangles(const Ray& ray, int ix, int iy, int
     voxelsTraversed++; // Statistics
 
     const cg_datastructures::Voxel& voxel = voxelGrid.voxels[ix][iy][iz];
+    bool hitFound = false;
+    result.hit = false;
 
     // Simple occupancy check
     if (voxel.occupied) {
-		bool hitFound = false;
 
         for (unsigned int i = 0; i < voxel.triangle_count; ++i) {
             unsigned int triIdx = voxelGrid.triangle_indices[voxel.triangle_start_idx + i];
@@ -296,9 +297,8 @@ bool OctreeLikeRayTracer::testVoxelTriangles(const Ray& ray, int ix, int iy, int
             }
 		}
     }
-
-    result.hit = false;
-    return false;
+    
+    return hitFound;
 }
 
 // ============================================================================

@@ -40,12 +40,12 @@ namespace GeometryUtils {
 // RAY-TRIANGLE INTERSECTION (MÖLLER-TRUMBORE ALGORITHM)
 // ============================================================================
 
-    bool rayTriangleIntersection(
-        const Ray& ray,
-        const Triangle& tri,
-        float& t, float& u, float& v) {
-		return true; // Placeholder implementation
-    }
+  //  bool rayTriangleIntersection(
+  //      const Ray& ray,
+  //      const Triangle& tri,
+  //      float& t, float& u, float& v) {
+		//return true; // Placeholder implementation
+  //  }
 
 // ============================================================================
 // TRIANGLE Min Max Vector COMPUTATION
@@ -62,13 +62,14 @@ namespace GeometryUtils {
     }
 
 	// ============================================================================
-	// TRIANGLE-BOX INTERSECTION
-	// implemens the muller method to 
+    // // RAY-TRIANGLE INTERSECTION (MÖLLER-TRUMBORE ALGORITHM)
+	// implemens the muller method to test for intersection between triangle and light ray
 	// ============================================================================
-    bool triangleIntersectsBox(
+    bool rayTriangleIntersection(
+        const Triangle& triangle,
         const Vec3& ray_vector,
 		const Vec3& ray_origin,
-        const Triangle& triangle)
+        float& t)
     {
 		//Smallest number to check against zero
         constexpr float EPSILON = std::numeric_limits<float>::epsilon();
@@ -95,7 +96,7 @@ namespace GeometryUtils {
             return false; //{};
 
         // At this stage we can compute t to find out where the intersection point is on the line.
-        float t = inv_det * dot(edge2, s_cross_e1);
+        t = inv_det * dot(edge2, s_cross_e1);
 
         if (t > EPSILON) // ray intersection
         {
@@ -105,6 +106,7 @@ namespace GeometryUtils {
             return false; //{}; Vec3 ray_cross_e2 = cross(ray_vector, edge2);
         
     }
+
 	// ============================================================================
   //  bool triangleIntersectsBox(
   //      const Vec3& ray_vector,

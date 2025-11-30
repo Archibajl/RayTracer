@@ -68,9 +68,9 @@ private:
 
     // Helper functions
     cg_datastructures::Ray generateRay(const cg_datastructures::Camera& camera, float u, float v);
-    bool rayTriangleIntersection(const cg_datastructures::Ray& ray,
+    /*bool rayTriangleIntersection(const cg_datastructures::Ray& ray,
                                 const cg_datastructures::Triangle& tri,
-                                float& t, float& u, float& v);
+                                float& t, float& u, float& v);*/
     int worldToVoxelIndex(float worldCoord, float gridMin, float voxelSize, int maxIndex) const;
     cg_datastructures::Vec3 voxelIndexToWorld(int ix, int iy, int iz) const;
 

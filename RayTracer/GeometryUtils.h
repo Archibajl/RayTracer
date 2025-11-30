@@ -10,7 +10,7 @@ namespace GeometryUtils {
     bool rayBoxIntersection(const Ray& ray, const Vec3& boxMin, const Vec3& boxMax, float& tNear, float& tFar);
 
     // Ray-Triangle Intersection using Möller-Trumbore algorithm
-    bool rayTriangleIntersection(const Ray& ray, const Triangle& triangle, float& t, float& u, float& v);
+    bool rayTriangleIntersection(const Triangle& triangle, const Vec3& ray_vector, const Vec3& ray_origin, float& t);
 
     // Compute AABB for a triangle
     void computeTriangleMinMax(const Triangle& triangle, Vec3& min, Vec3& max);

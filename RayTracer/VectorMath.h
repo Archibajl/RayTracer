@@ -37,5 +37,13 @@ namespace vector_math
     inline Vec3 multiply(const Vec3& v, float s) {
         return { v.x * s, v.y * s, v.z * s };
     }
+
+    inline int getDistanceTraveled(const Vec3& a, const Vec3& b) {
+        return static_cast<int>(std::sqrt(
+            (b.x - a.x) * (b.x - a.x) +
+            (b.y - a.y) * (b.y - a.y) +
+            (b.z - a.z) * (b.z - a.z)
+        ));
+	}
 };
 

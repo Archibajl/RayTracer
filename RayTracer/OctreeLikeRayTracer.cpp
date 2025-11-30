@@ -27,7 +27,7 @@ OctreeLikeRayTracer::OctreeLikeRayTracer(const VoxelGrid& grid, int maxDepth, in
 Vec3 OctreeLikeRayTracer::computeShading(const RayHit& hit, float v) const {
     if (hit.hit) {
         // Simple solid color for hits
-        return { 0.0f, 0.0f, 0.0f }; // Black
+        return { 0.9f, 0.9f, 0.9f }; // Black
     }
     else {
         // Background gradient
@@ -125,13 +125,13 @@ RayHit OctreeLikeRayTracer::traceRay(const Ray& ray) {
 // GEOMETRY INTERSECTION - WRAPPER FUNCTIONS
 // ============================================================================
 
-bool OctreeLikeRayTracer::rayTriangleIntersection(
-    const Ray& ray,
-    const Triangle& tri,
-    float& t, float& u, float& v) {
-
-    return GeometryUtils::rayTriangleIntersection(ray, tri, t, u, v);
-}
+//bool OctreeLikeRayTracer::rayTriangleIntersection(
+//    const Ray& ray,
+//    const Triangle& tri,
+//    float& t, float& u, float& v) {
+//
+//    return GeometryUtils::rayTriangleIntersection(ray, tri, t, u, v);
+//}
 
 // ============================================================================
 // VOXEL GRID HELPERS
@@ -285,15 +285,14 @@ bool OctreeLikeRayTracer::testVoxelTriangles(const Ray& ray, int ix, int iy, int
             unsigned int triIdx = voxelGrid.triangle_indices[voxel.triangle_start_idx + i];
             const Triangle& triangle = voxelGrid.triangles[triIdx];
             triangleTests++; // Statistics
-            float t, u, v;
-            if (rayTriangleIntersection(ray, triangle, t, u, v)) {
-                if (t < result.t && t > 0.0f) {
+            float t;    //, u, v;
+            if (GeometryUtils::rayTriangleIntersection(triangle, ray.direction, ray.origin, t)) {
                     result.hit = true;
                     result.t = t;
                     result.normal = triangle.normal;
                     result.point = triangle.v0;
                     result.triangleIndex = triIdx;
-                }
+				hitFound = true;
             }
 		}
     }

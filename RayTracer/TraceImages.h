@@ -22,6 +22,15 @@ enum class RayTracingMethod {
     // BRUTE_FORCE   // Direct triangle intersection (for testing)
 };
 
+/**
+ * Camera view angles
+ */
+enum class CameraView {
+    FRONT,      // Looking from front (negative Z)
+    SIDE,       // Looking from side (positive X)
+    TOP         // Looking from top (positive Y)
+};
+
 class TraceImages {
 public:
     /**
@@ -34,10 +43,25 @@ public:
                     std::string outputFileName,
                     RayTracingMethod method = RayTracingMethod::VOXEL_DDA);
 
+    /**
+     * Generate images from multiple camera views
+     * @param gridFileLocation Path to STL file
+     * @param baseOutputName Base output filename (e.g., "model" -> "model_front.jpg", "model_side.jpg", "model_top.jpg")
+     * @param method Ray tracing method to use
+     */
+    void TraceImageMultiView(std::string gridFileLocation,
+                             std::string baseOutputName,
+                             RayTracingMethod method = RayTracingMethod::VOXEL_DDA);
+
 private:
     void genateImageFromGrid(VoxelGrid voxelGrid,
                             std::string filename,
                             RayTracingMethod method);
+
+    void generateImageFromGridWithView(VoxelGrid voxelGrid,
+                                       std::string filename,
+                                       RayTracingMethod method,
+                                       CameraView view);
 
     stl_reader::StlMesh<float, unsigned int> loadStlMesh(const std::string& filepath);
     VoxelGrid generateVoxelGridFromStlMesh(const stl_reader::StlMesh<float, unsigned int>& stlMesh, int nx, int ny, int nz);
@@ -61,4 +85,5 @@ private:
 
     // Camera setup
     cg_datastructures::Camera setupCamera(const VoxelGrid& voxelGrid);
+    cg_datastructures::Camera setupCameraWithView(const VoxelGrid& voxelGrid, CameraView view);
 };

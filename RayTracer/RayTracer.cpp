@@ -27,9 +27,9 @@ int main() {
 			{modelDir + "\\lucy_scans\\lucy\\lucy.stl", "lucy.jpg"}
 		};
 
-		// Process all models
+		// Process all models with multiple views (front, side, top)
 		for (const auto& [inputPath, outputName] : models) {
-			tracer.TraceImage(inputPath, outputName, RayTracingMethod::OCTREE);
+			tracer.TraceImageMultiView(inputPath, outputName, RayTracingMethod::OCTREE);
 		}
 
 		LOG_INFO("========================================");

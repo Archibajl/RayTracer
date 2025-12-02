@@ -72,6 +72,48 @@ void TraceImages::TraceImage(std::string gridFileLocation, std::string outputFil
 	}
 }
 
+void TraceImages::TraceImageMultiView(std::string gridFileLocation, std::string baseOutputName, RayTracingMethod method) {
+	LOG_INFO("========== Starting multi-view image generation ==========");
+	LOG_INFO("Input: {} | Base output: {} | Method: {}", gridFileLocation, baseOutputName, getRayTracingMethodName(method));
+
+	// Start total timer
+	auto totalStart = std::chrono::high_resolution_clock::now();
+
+	try {
+		// Build or load voxel grid (only once for all views)
+		VoxelGrid voxelGrid = loadOrGenerateVoxelGrid(gridFileLocation, 50, 50, 50);
+
+		// Extract base name and extension from output filename
+		std::filesystem::path basePath(baseOutputName);
+		std::string extension = basePath.extension().string();
+		std::string nameWithoutExt = basePath.stem().string();
+
+		// Generate images from different views
+		std::vector<std::pair<CameraView, std::string>> views = {
+			{CameraView::FRONT, nameWithoutExt + "_front" + extension},
+			{CameraView::SIDE, nameWithoutExt + "_side" + extension},
+			{CameraView::TOP, nameWithoutExt + "_top" + extension}
+		};
+
+		for (const auto& [view, filename] : views) {
+			auto start = std::chrono::high_resolution_clock::now();
+			generateImageFromGridWithView(voxelGrid, filename, method, view);
+			auto end = std::chrono::high_resolution_clock::now();
+			auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+			LOG_INFO("View rendered in {:.3f}s", duration.count() / 1000.0);
+		}
+
+		auto totalEnd = std::chrono::high_resolution_clock::now();
+		auto totalDuration = std::chrono::duration_cast<std::chrono::milliseconds>(totalEnd - totalStart);
+		LOG_INFO("Success! Generated all views in {:.3f}s", totalDuration.count() / 1000.0);
+	}
+	catch (const std::exception& e) {
+		auto totalEnd = std::chrono::high_resolution_clock::now();
+		auto totalDuration = std::chrono::duration_cast<std::chrono::milliseconds>(totalEnd - totalStart);
+		logErrorInfo(gridFileLocation, e.what(), totalDuration.count() / 1000.0);
+	}
+}
+
 // ============================================================================
 // CAMERA SETUP
 // ============================================================================
@@ -99,6 +141,57 @@ Camera TraceImages::setupCamera(const VoxelGrid& voxelGrid) {
 	);
 }
 
+Camera TraceImages::setupCameraWithView(const VoxelGrid& voxelGrid, CameraView view) {
+	Vec3 center = voxelGrid.center;
+	Vec3 size = {
+		voxelGrid.maxBound.x - voxelGrid.minBound.x,
+		voxelGrid.maxBound.y - voxelGrid.minBound.y,
+		voxelGrid.maxBound.z - voxelGrid.minBound.z
+	};
+
+	float maxSize = std::max({size.x, size.y, size.z});
+	float cameraDistance = maxSize * 2.5f;
+
+	Vec3 cameraPosition;
+	Vec3 upVector;
+	std::string viewName;
+
+	switch (view) {
+		case CameraView::FRONT:
+			// Looking from front (negative Z direction)
+			cameraPosition = {center.x, center.y, center.z - cameraDistance};
+			upVector = {0.0f, 1.0f, 0.0f};
+			viewName = "FRONT";
+			break;
+
+		case CameraView::SIDE:
+			// Looking from side (positive X direction)
+			cameraPosition = {center.x + cameraDistance, center.y, center.z};
+			upVector = {0.0f, 1.0f, 0.0f};
+			viewName = "SIDE";
+			break;
+
+		case CameraView::TOP:
+			// Looking from top (positive Y direction)
+			cameraPosition = {center.x, center.y + cameraDistance, center.z};
+			upVector = {0.0f, 0.0f, 1.0f};  // Z is up when looking from top
+			viewName = "TOP";
+			break;
+	}
+
+	LOG_INFO("Camera {}: position({:.2f}, {:.2f}, {:.2f}), lookAt({:.2f}, {:.2f}, {:.2f})",
+		viewName, cameraPosition.x, cameraPosition.y, cameraPosition.z,
+		center.x, center.y, center.z);
+
+	return Camera(
+		cameraPosition,  // Position
+		center,          // Look at
+		upVector,        // Up
+		60.0f,           // FOV
+		800.0f / 600.0f  // Aspect ratio
+	);
+}
+
 std::vector<Vec3> TraceImages::renderWithTiming(IRayTracer* raytracer, const Camera& camera, int width, int height) {
 	auto start = std::chrono::high_resolution_clock::now();
 	auto pixels = raytracer->render(camera, width, height);
@@ -121,6 +214,22 @@ void TraceImages::genateImageFromGrid(VoxelGrid voxelGrid, std::string filename,
 
 	// Setup camera
 	Camera camera = setupCamera(voxelGrid);
+
+	// Render image
+	int width = 800, height = 600;
+	auto pixels = renderWithTiming(raytracer.get(), camera, width, height);
+
+	// Output image
+	std::string filepath = "C:\\Users\\j`\\OneDrive\\Documents\\MS-UCCS\\CS5800\\mesh models\\GeneratedFiles\\" + filename;
+	SaveImage(filepath, pixels, width, height);
+}
+
+void TraceImages::generateImageFromGridWithView(VoxelGrid voxelGrid, std::string filename, RayTracingMethod method, CameraView view) {
+	// Create ray tracer using factory method
+	std::unique_ptr<IRayTracer> raytracer = createRayTracer(voxelGrid, method);
+
+	// Setup camera with specific view
+	Camera camera = setupCameraWithView(voxelGrid, view);
 
 	// Render image
 	int width = 800, height = 600;

@@ -31,6 +31,9 @@
     <Filter Include="Source Files\CPURayTracers">
       <UniqueIdentifier>{be8ff96d-9915-4502-b91b-e17d79ea98f3}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\Writer">
+      <UniqueIdentifier>{944bfcc2-df1b-4ddc-ad62-2b7b78e61576}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="RayTracer.cpp">
@@ -52,7 +55,7 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="TraceImages.cpp">
-      <Filter>Source Files\Utils</Filter>
+      <Filter>Source Files\Writer</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -108,7 +111,7 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="stb_image_write.h">
-      <Filter>Source Files\Utils</Filter>
+      <Filter>Source Files\Writer</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

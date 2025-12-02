@@ -42,9 +42,6 @@
     <ClCompile Include="STLReader.cpp">
       <Filter>Source Files\Reader</Filter>
     </ClCompile>
-    <ClCompile Include="TraceImages.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="GeometryUtils.cpp">
       <Filter>Source Files\Utils</Filter>
     </ClCompile>
@@ -53,6 +50,9 @@
     </ClCompile>
     <ClCompile Include="Shaders.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="TraceImages.cpp">
+      <Filter>Source Files\Utils</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -106,6 +106,9 @@
     </ClInclude>
     <ClInclude Include="Shaders.h">
       <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="stb_image_write.h">
+      <Filter>Source Files\Utils</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

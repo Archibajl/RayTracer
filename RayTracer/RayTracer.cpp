@@ -21,10 +21,10 @@ int main() {
 
 		// Model configurations: {input_path, output_name}
 		std::vector<std::pair<std::string, std::string>> models = {
-			{modelDir + "\\Generic-scans\\Resistor.stl", "resistor.png"},
-			{modelDir + "\\Generic-scans\\Airless_2.stl", "airless-ball.png"},
-			{modelDir + "\\Utah_Teapot\\utahHR.stl", "utahTeapot.png"},
-			{modelDir + "\\lucy_scans\\lucy\\lucy.stl", "lucy.png"}
+			{modelDir + "\\Generic-scans\\Resistor.stl", "resistor.jpg"},
+			{modelDir + "\\Generic-scans\\Airless_2.stl", "airless-ball.jpg"},
+			{modelDir + "\\Utah_Teapot\\utahHR.stl", "utahTeapot.jpg"},
+			{modelDir + "\\lucy_scans\\lucy\\lucy.stl", "lucy.jpg"}
 		};
 
 		// Process all models

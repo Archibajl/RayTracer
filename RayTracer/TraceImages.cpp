@@ -168,16 +168,37 @@ void TraceImages::SaveImage(const std::string& filename,
 			std::filesystem::create_directories(dirPath);
 		}
 
-		if (saveToPPM(filename, pixels, width, height)) {
+		// Get file extension (convert to lowercase for comparison)
+		std::string extension = filePath.extension().string();
+		std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
+
+		bool success = false;
+
+		// Save based on file extension
+		if (extension == ".jpg" || extension == ".jpeg") {
+			success = saveToJPG(filename, pixels, width, height, 90);
+		}
+		else if (extension == ".png") {
+			success = saveToPNG(filename, pixels, width, height);
+		}
+		else if (extension == ".ppm") {
+			success = saveToPPM(filename, pixels, width, height);
+		}
+		else {
+			LOG_WARN("Unknown extension '{}', defaulting to PPM format", extension);
+			success = saveToPPM(filename, pixels, width, height);
+		}
+
+		if (success) {
 			LOG_INFO("Image saved: {}", filename);
 		} else {
 			LOG_ERROR("Failed to save: {}", filename);
 		}
 	}
 	catch (const std::exception& e) {
-		LOG_ERROR("Save error: {} - falling back to output.ppm", e.what());
-		if (saveToPPM("output.ppm", pixels, width, height)) {
-			LOG_INFO("Saved to fallback: {}", std::filesystem::absolute("output.ppm").string());
+		LOG_ERROR("Save error: {} - falling back to output.jpg", e.what());
+		if (saveToJPG("output.jpg", pixels, width, height, 90)) {
+			LOG_INFO("Saved to fallback: {}", std::filesystem::absolute("output.jpg").string());
 		}
 	}
 }

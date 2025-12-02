@@ -1,10 +1,16 @@
 #pragma once
+
+#define _CRT_SECURE_NO_WARNINGS
+
 #include "SceneCreator.h"
 #include <vector>
 #include <string>
 #include <fstream>
 #include <algorithm>
 #include "Logger.h"
+
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include "stb_image_write.h"
 
 namespace cg_datastructures {
 
@@ -29,6 +35,43 @@ inline bool saveToPPM(const std::string& filename,
     }
 
     return true;
+}
+
+// Save image to JPG format using stb_image_write
+inline bool saveToJPG(const std::string& filename,
+                      const std::vector<Vec3>& pixels,
+                      int width, int height,
+                      int quality = 90) {
+    // Convert Vec3 pixels to RGB bytes
+    std::vector<uint8_t> imageData(width * height * 3);
+
+    for (size_t i = 0; i < pixels.size(); ++i) {
+        imageData[i * 3 + 0] = static_cast<uint8_t>(std::clamp(pixels[i].x * 255.0f, 0.0f, 255.0f));
+        imageData[i * 3 + 1] = static_cast<uint8_t>(std::clamp(pixels[i].y * 255.0f, 0.0f, 255.0f));
+        imageData[i * 3 + 2] = static_cast<uint8_t>(std::clamp(pixels[i].z * 255.0f, 0.0f, 255.0f));
+    }
+
+    // Write JPG file (quality: 1-100, higher = better quality but larger file)
+    int result = stbi_write_jpg(filename.c_str(), width, height, 3, imageData.data(), quality);
+    return result != 0;
+}
+
+// Save image to PNG format using stb_image_write
+inline bool saveToPNG(const std::string& filename,
+                      const std::vector<Vec3>& pixels,
+                      int width, int height) {
+    // Convert Vec3 pixels to RGB bytes
+    std::vector<uint8_t> imageData(width * height * 3);
+
+    for (size_t i = 0; i < pixels.size(); ++i) {
+        imageData[i * 3 + 0] = static_cast<uint8_t>(std::clamp(pixels[i].x * 255.0f, 0.0f, 255.0f));
+        imageData[i * 3 + 1] = static_cast<uint8_t>(std::clamp(pixels[i].y * 255.0f, 0.0f, 255.0f));
+        imageData[i * 3 + 2] = static_cast<uint8_t>(std::clamp(pixels[i].z * 255.0f, 0.0f, 255.0f));
+    }
+
+    // Write PNG file (stride_in_bytes = 0 means tightly packed)
+    int result = stbi_write_png(filename.c_str(), width, height, 3, imageData.data(), width * 3);
+    return result != 0;
 }
 
 

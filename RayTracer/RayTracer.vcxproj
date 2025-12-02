@@ -150,6 +150,7 @@
     <ClInclude Include="resource.h" />
     <ClInclude Include="SceneCreator.h" />
     <ClInclude Include="Shaders.h" />
+    <ClInclude Include="stb_image_write.h" />
     <ClInclude Include="STLReader.h" />
     <ClInclude Include="TraceImages.h" />
     <ClInclude Include="VectorMath.h" />

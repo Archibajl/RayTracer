@@ -115,7 +115,7 @@ VoxelizationParams computeVoxelizationParams(const MeshBounds& bounds, int nx, i
         uniformVoxelSize
     };
 
-    LOG_INFO("Uniform voxel size: {}", uniformVoxelSize);
+    LOG_INFO("Voxel size set: {} (uniform across all dimensions)", uniformVoxelSize);
     LOG_INFO("Grid dimensions: ({}, {}, {})", gridSize.x, gridSize.y, gridSize.z);
 
     return params;

@@ -56,6 +56,8 @@ void TraceImages::TraceImage(std::string gridFileLocation, std::string outputFil
 	try {
 		// Build or load voxel grid
 		VoxelGrid voxelGrid = loadOrGenerateVoxelGrid(gridFileLocation, 50, 50, 50);
+		LOG_INFO("Voxel grid generated with size: ({:.6f}, {:.6f}, {:.6f})",
+			voxelGrid.voxelSize.x, voxelGrid.voxelSize.y, voxelGrid.voxelSize.z);
 
 		// Generate images using specified method
 		renderImageWithTiming(voxelGrid, outputFileName, method);
@@ -82,6 +84,8 @@ void TraceImages::TraceImageMultiView(std::string gridFileLocation, std::string 
 	try {
 		// Build or load voxel grid (only once for all views)
 		VoxelGrid voxelGrid = loadOrGenerateVoxelGrid(gridFileLocation, 50, 50, 50);
+		LOG_INFO("Voxel grid generated with size: ({:.6f}, {:.6f}, {:.6f})",
+			voxelGrid.voxelSize.x, voxelGrid.voxelSize.y, voxelGrid.voxelSize.z);
 
 		// Extract base name and extension from output filename
 		std::filesystem::path basePath(baseOutputName);
